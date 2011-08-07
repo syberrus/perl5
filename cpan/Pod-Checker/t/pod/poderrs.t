@@ -143,12 +143,6 @@ L<some text with / in it|perlvar/$|> should give warnings as hell
 
 the 200 is evil
 
-=begin html
-
-What?
-
-=end xml
-
 X<unescaped>see these unescaped < and > in the text?
 
 =head2 Misc
@@ -156,6 +150,8 @@ X<unescaped>see these unescaped < and > in the text?
 Z<ddd> should be empty
 
 X<> should not be empty
+
+E<> should not be empty
 
 =over four
 
@@ -244,9 +240,15 @@ trigger a podchecker warning (using bleadperl) :
 
 =head1
 
-Empty head above and unclosed over below
+Empty head above and unclosed over/begins below
 
 =over
+
+=begin html
+
+What?
+
+=begin :xml
 
 =cut
 
