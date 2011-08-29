@@ -1740,6 +1740,15 @@ cpan/Pod-Parser/t/pod/nested_seqs.t		Test nested interior sequences
 cpan/Pod-Parser/t/pod/nested_seqs.xr		Expected results for nested_seqs.t
 cpan/Pod-Parser/t/pod/oneline_cmds.t		Test single paragraph ==cmds
 cpan/Pod-Parser/t/pod/oneline_cmds.xr		Expected results for oneline_cmds.t
+cpan/Pod-Parser/t/pod/p2u_data.pl		Test Pod::Usage
+cpan/Pod-Parser/t/pod/pod2usage2.t		Test Pod::Usage
+cpan/Pod-Parser/t/pod/pod2usage.t		Test Pod::Usage
+cpan/Pod-Parser/t/pod/pod2usage.xr		Expected results for pod2usage.t
+cpan/Pod-Parser/t/pod/podchkenc.t		Validate =encoding support
+cpan/Pod-Parser/t/pod/podchkenc.xr		Expected results for the above
+cpan/Pod-Parser/t/pod/podchkinter.t		Test Pod::Checker's interface	
+cpan/Pod-Parser/t/pod/poderrs.t			Test POD errors
+cpan/Pod-Parser/t/pod/poderrs.xr		Expected results for poderrs.t
 cpan/Pod-Parser/t/pod/podselect.t		Test Pod::Select
 cpan/Pod-Parser/t/pod/podselect.xr		Expected results for podselect.t
 cpan/Pod-Parser/t/pod/selfcheck.t
