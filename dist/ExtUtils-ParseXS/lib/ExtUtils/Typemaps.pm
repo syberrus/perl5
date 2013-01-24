@@ -537,7 +537,7 @@ sub get_outputmap {
 
 Write the typemap to a file. Optionally takes a C<file> argument. If given, the
 typemap will be written to the specified file. If not, the typemap is written
-to the currently stored file name (see C<-E<gt>file> above, this defaults to the file
+to the currently stored file name (see L<-E<gt>file> above, this defaults to the file
 it was read from if any).
 
 =cut
