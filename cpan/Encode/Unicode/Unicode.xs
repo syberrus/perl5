@@ -275,7 +275,7 @@ CODE:
 	    resultbuflen = SvLEN(result);
 	}
 
-	d = uvuni_to_utf8_flags(resultbuf+SvCUR(result), ord,
+	d = uvchr_to_utf8_flags(resultbuf+SvCUR(result), UNI_TO_NATIVE(ord),
                                             UNICODE_WARN_ILLEGAL_INTERCHANGE);
 	SvCUR_set(result, d - (U8 *)SvPVX(result));
     }
@@ -343,11 +343,12 @@ CODE:
     }
     while (s < e && s+UTF8SKIP(s) <= e) {
 	STRLEN len;
-	UV ord = utf8n_to_uvuni(s, e-s, &len, (UTF8_DISALLOW_SURROGATE
+	UV ord = NATIVE_TO_UNI(utf8n_to_uvchr(s, e-s, &len,
+                                               (UTF8_DISALLOW_SURROGATE
                                                |UTF8_WARN_SURROGATE
                                                |UTF8_DISALLOW_FE_FF
                                                |UTF8_WARN_FE_FF
-                                               |UTF8_WARN_NONCHAR));
+                                               |UTF8_WARN_NONCHAR)));
 	s += len;
 	if (size != 4 && invalid_ucs2(ord)) {
 	    if (!issurrogate(ord)) {

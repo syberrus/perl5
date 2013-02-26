@@ -190,8 +190,8 @@ encode_method(pTHX_ const encode_t * enc, const encpage_t * dir, SV * src,
         if (dir == enc->f_utf8) {
         STRLEN clen;
         UV ch =
-            utf8n_to_uvuni(s+slen, (SvCUR(src)-slen),
-                   &clen, UTF8_ALLOW_ANY|UTF8_CHECK_ONLY);
+            NATIVE_TO_UNI(utf8n_to_uvchr(s+slen, (SvCUR(src)-slen),
+                          &clen, UTF8_ALLOW_ANY|UTF8_CHECK_ONLY));
         /* if non-representable multibyte prefix at end of current buffer - break*/
         if (clen > tlen - sdone) break;
         if (check & ENCODE_DIE_ON_ERR) {
@@ -361,18 +361,18 @@ process_utf8(pTHX_ SV* dst, U8* s, U8* e, SV *check_sv,
                 goto malformed_byte;
             }
 
-            uv = utf8n_to_uvuni(s, e - s, &ulen,
+            uv = NATIVE_TO_UNI(utf8n_to_uvchr(s, e - s, &ulen,
                                 UTF8_CHECK_ONLY | (strict ? UTF8_ALLOW_STRICT :
                                                             UTF8_ALLOW_NONSTRICT)
-                               );
+                               ));
 #if 1 /* perl-5.8.6 and older do not check UTF8_ALLOW_LONG */
         if (strict && uv > PERL_UNICODE_MAX)
         ulen = (STRLEN) -1;
 #endif
             if (ulen == (STRLEN) -1) {
                 if (strict) {
-                    uv = utf8n_to_uvuni(s, e - s, &ulen,
-                                        UTF8_CHECK_ONLY | UTF8_ALLOW_NONSTRICT);
+                    uv = NATIVE_TO_UNI(utf8n_to_uvchr(s, e - s, &ulen,
+                                        UTF8_CHECK_ONLY | UTF8_ALLOW_NONSTRICT));
                     if (ulen == (STRLEN) -1)
                         goto malformed_byte;
                     goto malformed;
