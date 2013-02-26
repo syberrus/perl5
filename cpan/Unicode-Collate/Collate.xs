@@ -10,10 +10,17 @@
 /* This file is prepared by mkheader */
 #include "ucatbl.h"
 
-/* Perl 5.6.1 ? */
-#ifdef utf8_to_uv
-#define utf8n_to_uvuni  utf8_to_uv
-#endif /* utf8_to_uv */
+#ifdef NATIVE_SKIP
+    /* On modern Perls, the translation tables are stored in native order, so
+     * we want uvchr() instead of uvuni() */
+#   undef utf8n_to_uvuni
+#   define utf8n_to_uvuni   utf8n_to_uvchr
+#else
+    /* Perl 5.6.1 ? */
+#   ifdef utf8_to_uv
+#       define utf8n_to_uvuni  utf8_to_uv
+#   endif /* utf8_to_uv */
+#endif
 
 /* UTF8_ALLOW_BOM is used before Perl 5.8.0 */
 #ifndef UTF8_ALLOW_BOM
