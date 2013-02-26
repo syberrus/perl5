@@ -534,7 +534,7 @@ CODE:
     }
     else {
     	/* Native bytes - can always encode */
-    U8 *d = (U8 *) SvGROW(dst, 2*slen+1); /* +1 or assertion will botch */
+        U8 *d = (U8 *) SvGROW(dst, 2*slen+1); /* +1 or assertion will botch */
     	while (s < e) {
     	    UV uv = NATIVE_TO_UNI((UV) *s);
 	    s++; /* Above expansion of NATIVE_TO_UNI() is safer this way. */
@@ -544,7 +544,7 @@ CODE:
     	        *d++ = (U8)UTF8_EIGHT_BIT_HI(uv);
                 *d++ = (U8)UTF8_EIGHT_BIT_LO(uv);
             }
-    }
+        }
         SvCUR_set(dst, d- (U8 *)SvPVX(dst));
     	*SvEND(dst) = '\0';
     }
