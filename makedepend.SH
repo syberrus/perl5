@@ -198,6 +198,10 @@ for file in `$cat .clist`; do
         $uniq | $sort | $uniq >> .deptmp
     else
         $cppstdin $finc -I. $cppflags $cppminus <UU/$file.c >.cout 2>.cerr
+        if [ -s .cerr ]; then
+            echo ".cerr is" >&2
+            cat .cerr >&2
+        fi
         $sed \
 	    -e '1d' \
 	    -e '/^#.*<stdin>/d' \
