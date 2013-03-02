@@ -5719,12 +5719,12 @@ echo "Internal Configure script bug - compiler test file ${mc_file}.c is missing
 exit 1;
 fi;
 esac;
-$cc -o ${mc_file} $optimize $ccflags $ldflags $* ${mc_file}.c $libs > /dev/null 2>&1;'
+$cc -o ${mc_file} $optimize $ccflags -Wc,"LANGLVL(LONGLONG)" $ldflags $* ${mc_file}.c $libs > /dev/null 2>&1;'
 : define a shorthand compile call for compilations that should be ok.
 compile_ok='
 mc_file=$1;
 shift;
-$cc -o ${mc_file} $optimize $ccflags $ldflags $* ${mc_file}.c $libs;'
+$cc -o ${mc_file} $optimize $ccflags -Wc,"LANGLVL(LONGLONG)" $ldflags $* ${mc_file}.c $libs;'
 
 : determine filename position in cpp output
 echo " "
