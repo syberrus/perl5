@@ -222,7 +222,8 @@ gconvert_preference=sprintf
 cat >config.arch<<'__CONFIG_ARCH__'
 # The '-W 0,float(ieee)' cannot be used during Configure as ldflags.
 
-ccflags="$ccflags -W 0,float(ieee) -W 0,LANGLVL(LONGLONG)"
+# CCN4108 is a bogus message about inline not being portable
+ccflags="$ccflags -W 0,float(ieee),LANGLVL(LONGLONG),SUPPRESS(CCN4108)"
 
 __CONFIG_ARCH__
 
