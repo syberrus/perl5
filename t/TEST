@@ -576,6 +576,7 @@ EOT
 	my $trailing_leader = 0;
 	my $max;
 	my %todo;
+	my $err_count = 0;
 	while (<$results>) {
 	    next if /^\s*$/; # skip blank lines
 	    if (/^1..$/ && ($^O eq 'VMS')) {
@@ -638,8 +639,9 @@ EOT
 			    $istodo = 1 if $todo{$num};
 
 			    if( $not && !$istodo ) {
-				$failure = "FAILED at test $num";
-				last;
+				$failure = "FAILED at test $num" if ! $failure;
+				$err_count++;
+				last if $err_count > 10;
 			    }
 			}
 			else {
@@ -660,6 +662,7 @@ EOT
 		}
 	    }
 	}
+	my  @junk = <$results>;     # dump remaining output to prevent SIGPIPE
 	close $results;
 
 	if (not defined $failure) {
