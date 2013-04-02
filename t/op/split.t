@@ -477,14 +477,16 @@ is($cnt, scalar(@ary));
     my @results;
     my $expr;
     $expr = ' a b c ';
-    @results = split "\x20", $expr;
+    @results = split "\x20", $expr if $::IS_ASCII;
+    @results = split "\x40", $expr if $::IS_EBCDIC;
     is @results, 3,
         "RT #116086: split on string of single hex-20: captured 3 elements";
     is $results[0], 'a',
         "RT #116086: split on string of single hex-20: first element is non-empty";
 
     $expr = " a \tb c ";
-    @results = split "\x20", $expr;
+    @results = split "\x20", $expr if $::IS_ASCII;
+    @results = split "\x40", $expr if $::IS_EBCDIC;
     is @results, 3,
         "RT #116086: split on string of single hex-20: captured 3 elements";
     is $results[0], 'a',
