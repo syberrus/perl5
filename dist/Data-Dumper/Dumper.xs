@@ -72,8 +72,7 @@ Perl_utf8_to_uvchr_buf(pTHX_ U8 *s, U8 *send, STRLEN *retlen)
      * end of the buffer if there is a malformation that indicates the
      * character is longer than the space available */
 
-    const UV uv = utf8_to_uvchr(s, retlen);
-    return UNI_TO_NATIVE(uv);
+    return utf8_to_uvchr(s, retlen);
 }
 
 # if !defined(PERL_IMPLICIT_CONTEXT)
