@@ -5,7 +5,7 @@ BEGIN {
     @INC = '../lib';
 }
 
-BEGIN { require "./test.pl"; }
+BEGIN { require "./test.pl"; require "./charset_tools.pl"; }
 
 plan(tests => 1);
 
