@@ -404,6 +404,7 @@ sub _tests_from_manifest {
 	    if (m!^((?:cpan|dist|ext)/(\S+)/+(?:[^/\s]+\.t|test\.pl)|lib/\S+?(?:\.t|test\.pl))\s!) {
 		my $t = $1;
 		my $extension = $2;
+		next if $t =~ /^cpan/ && ord("A") != 65;
 		if (!$::core || $t =~ m!^lib/[a-z]!) {
 		    if (defined $extension) {
 			$extension =~ s!/t(:?/\S+)*$!!;
