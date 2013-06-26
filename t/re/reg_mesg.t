@@ -453,8 +453,6 @@ my @deprecated = (
 while (my ($regex, $expect) = splice @death, 0, 2) {
     my $expect = fixup_expect($expect);
     no warnings 'experimental::regex_sets';
-    # skip the utf8 test on EBCDIC since they do not die
-    next if $::IS_EBCDIC && $regex =~ /utf8/;
 
     warning_is(sub {
 		   $_ = "x";
