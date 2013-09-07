@@ -730,8 +730,7 @@ sub qquote {
   s/([\\\"\@\$])/\\$1/g;
   my $bytes; { use bytes; $bytes = length }
   s/([[:^ascii:]])/'\x{'.sprintf("%x",ord($1)).'}'/ge if $bytes > length;
-  return qq("$_") unless
-    /[^ !"\#\$%&'()*+,\-.\/0-9:;<=>?\@A-Z[\\\]^_`a-z{|}~]/;  # fast exit
+  return qq("$_") unless /[[:^print:]]/;    # fast exit
 
   my $high = shift || "";
   s/([\a\b\t\n\f\r\e])/$esc{$1}/g;
@@ -754,9 +753,9 @@ sub qquote {
     }
   }
   else { # ebcdic
-      s{([^ !"\#\$%&'()*+,\-.\/0-9:;<=>?\@A-Z[\\\]^_`a-z{|}~])(?!\d)}
+      s{([[:^print:]])(?!\d)}
        {my $v = ord($1); '\\'.sprintf(($v <= 037 ? '%o' : '%03o'), $v)}eg;
-      s{([^ !"\#\$%&'()*+,\-.\/0-9:;<=>?\@A-Z[\\\]^_`a-z{|}~])}
+      s{([[:^print:]])}
        {'\\'.sprintf('%03o',ord($1))}eg;
   }
 
