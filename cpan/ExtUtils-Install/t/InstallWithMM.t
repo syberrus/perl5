@@ -19,13 +19,13 @@ BEGIN {
         plan skip_all => "Uses JSON which requires an ASCII platform";
     }
     else {
-    $make = make_run();
-    if (!$make) {
-	plan skip_all => "make isn't available";
-    }
-    else {
-	plan tests => 15;
-    }
+        $make = make_run();
+        if (!$make) {
+            plan skip_all => "make isn't available";
+        }
+        else {
+            plan tests => 15;
+        }
     }
 }
 
