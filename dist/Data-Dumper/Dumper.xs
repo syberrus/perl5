@@ -235,13 +235,24 @@ esc_q_utf8(pTHX_ SV* sv, const char *src, STRLEN slen, I32 do_utf8, I32 useqq)
     int increment;
     UV next;
 
-    for (s = src; s < send; s += increment) {
-        const UV k = utf8_to_uvchr_buf((U8*)s, (U8*) send, NULL);
+    /* this will need EBCDICification */
+    for (s = src; s < send; do_utf8 ? s += increment : s++) {
+        const UV k = do_utf8 ? utf8_to_uvchr_buf((U8*)s, (U8*) send, NULL) : *(U8*)s;
 
         /* check for invalid utf8 */
         increment = (k == 0 && *s != '\0') ? 1 : UTF8SKIP(s);
 
-	if (!isASCII(k)) {
+	/* this is only used to check if the next character is an
+	 * ASCII digit, which are invariant, so if the following collects
+	 * a UTF-8 start byte it does no harm
+	 */
+	next = (s + increment >= send ) ? 0 : *(U8*)(s+increment);
+
+#ifdef EBCDIC
+	if (!isprint(k) || k > 256) {
+#else
+	if (k > 127) {
+#endif
             /* 4: \x{} then count the number of hex digits.  */
             grow += 4 + (k <= 0xFF ? 2 : k <= 0xFFF ? 3 : k <= 0xFFFF ? 4 :
 #if UVSIZE == 4
@@ -250,6 +261,7 @@ esc_q_utf8(pTHX_ SV* sv, const char *src, STRLEN slen, I32 do_utf8, I32 useqq)
                 k <= 0xFFFFFFFF ? 8 : UVSIZE * 4
 #endif
                 );
+/* XXX Look at posix.log */
 #ifndef EBCDIC
 	} else if (useqq &&
 	    /* we can't use the short form like '\0' if followed by a digit */
@@ -287,7 +299,48 @@ esc_q_utf8(pTHX_ SV* sv, const char *src, STRLEN slen, I32 do_utf8, I32 useqq)
                 *r++ = (char)k;
             }
             else
-	      if (isASCII(k))
+#ifdef EBCDIC
+	      if (isprint(k) && k < 256)
+#else
+	      if (useqq && (k <= 31 || k == 127 || (!do_utf8 && k > 127))) {
+	        bool next_is_digit;
+
+		*r++ = '\\';
+		switch (k) {
+		case 7:  *r++ = 'a'; break;
+		case 8:  *r++ = 'b'; break;
+		case 9:  *r++ = 't'; break;
+		case 10: *r++ = 'n'; break;
+		case 12: *r++ = 'f'; break;
+		case 13: *r++ = 'r'; break;
+		case 27: *r++ = 'e'; break;
+		default:
+		    increment = (k == 0 && *s != '\0') ? 1 : UTF8SKIP(s);
+
+		    /* only ASCII digits matter here, which are invariant,
+		     * since we only encode characters \377 and under, or
+		     * \x177 and under for a unicode string
+		     */
+		    next = (s+increment < send) ? *(U8*)(s+increment) : 0;
+		    next_is_digit = next >= '0' && next <= '9';
+
+		    /* faster than
+		     * r = r + my_sprintf(r, "%o", k);
+		     */
+		    if (k <= 7 && !next_is_digit) {
+			*r++ = (char)k + '0';
+		    } else if (k <= 63 && !next_is_digit) {
+			*r++ = (char)(k>>3) + '0';
+			*r++ = (char)(k&7) + '0';
+		    } else {
+			*r++ = (char)(k>>6) + '0';
+			*r++ = (char)((k&63)>>3) + '0';
+			*r++ = (char)(k&7) + '0';
+		    }
+		}
+	    }
+	    else if (k < 0x80)
+#endif
                 *r++ = (char)k;
             else {
 #if PERL_VERSION < 10
@@ -1217,7 +1270,7 @@ MODULE = Data::Dumper		PACKAGE = Data::Dumper         PREFIX = Data_Dumper_
 #
 # This is the exact equivalent of Dump.  Well, almost. The things that are
 # different as of now (due to Laziness):
-#   * doesn't deparse yet.'
+#   * doesn't do double-quotes yet.
 #
 
 void
