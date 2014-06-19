@@ -15,7 +15,7 @@ sub output_table ($$) {
     my $name = shift;
 
     # Tables in hex easier to debug, but don't fit into 80 columns
-    my $print_in_hex = 0;
+    my $print_in_hex = 1;
 
     die "Requres 256 entries in table $name, got @$table_ref" if @$table_ref != 256;
 
