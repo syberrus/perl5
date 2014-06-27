@@ -162,7 +162,7 @@ sub Complete {
                 };
 
                 # printable char
-                ord >= 32 && do {
+                /[[:print:]]/u && do {
                     $return .= $_;
                     $r++;
                     print;
