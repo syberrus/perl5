@@ -14480,7 +14480,7 @@ S_regclass(pTHX_ RExC_state_t *pRExC_state, I32 *flagp, U32 depth,
                         element_count++;
                     } else
                         range = 1;	/* yeah, it's a range! */
-                    continue;	/* but do it the next time */
+                    continue;	/* go get the range end */
                 }
 	    }
 	}
@@ -14795,6 +14795,7 @@ S_regclass(pTHX_ RExC_state_t *pRExC_state, I32 *flagp, U32 depth,
                 op = compute_EXACTish(pRExC_state);
             }
         } /* Otherwise is a range */
+#if 0
         else if (! LOC) {   /* locale could vary these */
             if (prevvalue == '0') {
                 if (value == '9') {
@@ -14823,6 +14824,7 @@ S_regclass(pTHX_ RExC_state_t *pRExC_state, I32 *flagp, U32 depth,
                 }
             }
         }
+#endif
 
         /* Here, we have changed <op> away from its initial value iff we found
          * an optimization */
