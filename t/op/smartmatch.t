@@ -9,6 +9,9 @@ use strict;
 use warnings;
 no warnings 'uninitialized';
 no warnings 'experimental::smartmatch';
+no warnings 'experimental::smartmatch::scalar';
+
+++$|;
 
 use Tie::Array;
 use Tie::Hash;
@@ -54,6 +57,7 @@ tie my %tied_hash, 'Tie::StdHash';
     };
     use overload '""' => sub { "stringified" };
     use overload 'eq' => sub {"$_[0]" eq "$_[1]"};
+    use overload '==' => sub {"$_[0]" eq "$_[1]"};
 }
 
 our $ov_obj = Test::Object::WithOverload->new;
@@ -81,6 +85,10 @@ while (<DATA>) {
     next if /^#/ || !/\S/;
     chomp;
     my ($yn, $left, $right, $note) = split /\t+/;
+    # $yn can contain the following flags:
+    #  ! - doesn't match
+    #  @ - match expected to die
+    #  = - test both $left ~~ $right and $right ~~ $left
 
     local $::TODO = $note =~ /TODO/;
 
@@ -328,7 +336,7 @@ __DATA__
 =!	["quux"]	\%hash
 =!	[qw(foo quux)]	\%hash
 =!	@fooormore	{ foo => 1, or => 2, more => 3 }
-=!	@fooormore	%fooormore
+!	@fooormore	%fooormore
 =!	@fooormore	\%fooormore
 =!	\@fooormore	%fooormore
 
@@ -435,12 +443,16 @@ __DATA__
 
 # Number against string
 =	2		"2"
-!=	2		"2.0"
+!	2		"2.0"
 !	2		"2bananas"
 !=	2_3		"2_3"
 	FALSE		"0"
 !	undef		"0"
 	undef		""
+
+# String against number
+	"2.0"		2
+	" 2"		2
 
 # Regex against string
 	"x"		qr/x/

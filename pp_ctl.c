@@ -4599,8 +4599,29 @@ PP(pp_smartmatch)
 	if (!(SvPOK_nog(e) ? SvCUR(e) : sv_len(e))) RETPUSHYES;
 	RETPUSHNO;
     }
+
+    Perl_ck_warner_d(aTHX_ packWARN(WARN_EXPERIMENTAL__SMARTMATCH__SCALAR),
+                     "Smartmatch on string/number is experimental");
+    if (SvNIOKp(e)) {
+	DEBUG_M(
+            Perl_deb(aTHX_ "    applying rule Any-Num\n");
+	);
+	/* numeric comparison */
+	PUSHs(d); PUSHs(e);
+	PUTBACK;
+	if (CopHINTS_get(PL_curcop) & HINT_INTEGER)
+	    (void) Perl_pp_i_eq(aTHX);
+	else
+	    (void) Perl_pp_eq(aTHX);
+	SPAGAIN;
+	if (SvTRUEx(POPs))
+	    RETPUSHYES;
+	else
+	    RETPUSHNO;
+    }
+
     /* As a last resort, use string comparison */
-    DEBUG_M(Perl_deb(aTHX_ "    applying rule Any-Any\n"));
+    DEBUG_M(Perl_deb(aTHX_ "    applying rule Any-Str\n"));
     PUSHs(d); PUSHs(e);
     PUTBACK;
     return Perl_pp_seq(aTHX);

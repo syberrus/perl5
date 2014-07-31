@@ -9,6 +9,7 @@ BEGIN {
 use strict;
 use warnings;
 no warnings 'experimental::smartmatch';
+no warnings 'experimental::smartmatch::scalar';
 
 plan tests => 196;
 
@@ -86,7 +87,7 @@ sub check_outside1 { is($_, "inside", "\$_ is not lexically scoped") }
 	when(4) { $ok = 'four'; }
 	default { $ok = 'd'; }
     }
-    is($ok, 'd', "no integer comparison");
+    is($ok, 'three', "integer comparison");
 }
 
 {    

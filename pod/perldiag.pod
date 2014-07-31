@@ -5080,6 +5080,13 @@ Perl.  Particularly, its current behavior is noticed for being
 unnecessarily complex and unintuitive, and is very likely to be
 overhauled.
 
+=item Smartmatch on string/number is experimental
+
+(S experimental::smartmatch::scalar) This warning is emitted if you
+use the smartmatch (C<~~>) operator with a number or string on the
+right-hand side.  The behaviour of this particular case may change in
+a future release of Perl.
+
 =item sort is now a reserved word
 
 (F) An ancient error message that almost nobody ever runs into anymore.
