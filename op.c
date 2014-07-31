@@ -6829,6 +6829,38 @@ Perl_newLOOPEX(pTHX_ I32 type, OP *label)
     return o;
 }
 
+/* if the condition is a literal array or hash
+   (or @{ ... } etc), make a reference to it.
+ */
+STATIC OP *
+S_ref_array_or_hash(pTHX_ OP *cond)
+{
+    if (cond
+    && (cond->op_type == OP_RV2AV
+    ||  cond->op_type == OP_PADAV
+    ||  cond->op_type == OP_RV2HV
+    ||  cond->op_type == OP_PADHV))
+
+	return newUNOP(OP_REFGEN, 0, op_lvalue(cond, OP_REFGEN));
+
+    else if(cond
+    && (cond->op_type == OP_ASLICE
+    ||  cond->op_type == OP_KVASLICE
+    ||  cond->op_type == OP_HSLICE
+    ||  cond->op_type == OP_KVHSLICE)) {
+
+	/* anonlist now needs a list from this op, was previously used in
+	 * scalar context */
+	cond->op_flags |= ~(OPf_WANT_SCALAR | OPf_REF);
+	cond->op_flags |= OPf_WANT_LIST;
+
+	return newANONLIST(op_lvalue(cond, OP_ANONLIST));
+    }
+
+    else
+	return cond;
+}
+
 /* These construct the optree fragments representing given()
    and when() blocks.
 
@@ -6900,7 +6932,7 @@ Perl_newGIVENOP(pTHX_ OP *cond, OP *block, PADOFFSET defsv_off)
 {
     PERL_ARGS_ASSERT_NEWGIVENOP;
     return newGIVWHENOP(
-    	cond,
+        ref_array_or_hash(cond),
     	block,
 	OP_ENTERGIVEN, OP_LEAVEGIVEN,
 	defsv_off);
@@ -9322,6 +9354,53 @@ Perl_ck_listiob(pTHX_ OP *o)
 
     if (o->op_type == OP_PRTF) return modkids(listkids(o), OP_PRTF);
     return listkids(o);
+}
+
+OP *
+Perl_ck_smartmatch(pTHX_ OP *o)
+{
+    dVAR;
+    PERL_ARGS_ASSERT_CK_SMARTMATCH;
+    if (0 == (o->op_flags & OPf_SPECIAL)) {
+	OP *first  = cBINOPo->op_first;
+	OP *second = OP_SIBLING(first);
+	
+	/* Implicitly take a reference to an array or hash */
+
+        /* remove the original two siblings, then add back the
+         * (possibly different) first and second sibs.
+         */
+        op_sibling_splice(o, NULL, 1, NULL);
+        op_sibling_splice(o, NULL, 1, NULL);
+	first  = ref_array_or_hash(first);
+        switch (second->op_type) {
+        case OP_RV2AV:
+        case OP_PADAV:
+            Perl_croak(aTHX_ "Cannot smartmatch against an array");
+        case OP_RV2HV:
+        case OP_PADHV:
+            Perl_croak(aTHX_ "Cannot smartmatch against an hash");
+        case OP_ASLICE:
+        case OP_KVASLICE:
+        case OP_HSLICE:
+        case OP_KVHSLICE:
+            Perl_croak(aTHX_ "Cannot smartmatch against a slice");
+            
+        default:
+            break;
+        }
+
+        op_sibling_splice(o, NULL, 0, second);
+        op_sibling_splice(o, NULL, 0, first);
+	
+	/* Implicitly take a reference to a regular expression on the right*/
+	if (second->op_type == OP_MATCH) {
+	    second->op_type = OP_QR;
+	    second->op_ppaddr = PL_ppaddr[OP_QR];
+        }
+    }
+    
+    return o;
 }
 
 OP *

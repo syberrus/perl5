@@ -4592,6 +4592,10 @@ PP(pp_smartmatch)
 	    destroy_matcher(matcher);
 	    RETURN;
 	}
+    else if (SvROK(e) && !SvOBJECT(SvRV(e))) {
+        Perl_croak(aTHX_ "Cannot smartmatch against an unblessed %s reference",
+                   sv_reftype(e, 0));
+    }
     /* ~~ scalar */
     else if (!SvOK(d)) {
 	/* we already know that the scalar is SvOK */

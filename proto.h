@@ -621,6 +621,12 @@ PERL_CALLCONV OP *	Perl_ck_shift(pTHX_ OP *o)
 #define PERL_ARGS_ASSERT_CK_SHIFT	\
 	assert(o)
 
+PERL_CALLCONV OP *	Perl_ck_smartmatch(pTHX_ OP *o)
+			__attribute__warn_unused_result__
+			__attribute__nonnull__(pTHX_1);
+#define PERL_ARGS_ASSERT_CK_SMARTMATCH	\
+	assert(o)
+
 PERL_CALLCONV OP *	Perl_ck_sort(pTHX_ OP *o)
 			__attribute__warn_unused_result__
 			__attribute__nonnull__(pTHX_1);
@@ -6227,6 +6233,7 @@ STATIC void	S_process_special_blocks(pTHX_ I32 floor, const char *const fullname
 #define PERL_ARGS_ASSERT_PROCESS_SPECIAL_BLOCKS	\
 	assert(fullname); assert(gv); assert(cv)
 
+STATIC OP*	S_ref_array_or_hash(pTHX_ OP* cond);
 STATIC OP*	S_refkids(pTHX_ OP* o, I32 type);
 STATIC bool	S_scalar_mod_type(const OP *o, I32 type)
 			__attribute__warn_unused_result__;

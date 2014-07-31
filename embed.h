@@ -1101,6 +1101,7 @@
 #define ck_sassign(a)		Perl_ck_sassign(aTHX_ a)
 #define ck_select(a)		Perl_ck_select(aTHX_ a)
 #define ck_shift(a)		Perl_ck_shift(aTHX_ a)
+#define ck_smartmatch(a)	Perl_ck_smartmatch(aTHX_ a)
 #define ck_sort(a)		Perl_ck_sort(aTHX_ a)
 #define ck_spair(a)		Perl_ck_spair(aTHX_ a)
 #define ck_split(a)		Perl_ck_split(aTHX_ a)
@@ -1510,6 +1511,7 @@
 #define op_std_init(a)		S_op_std_init(aTHX_ a)
 #define pmtrans(a,b,c)		S_pmtrans(aTHX_ a,b,c)
 #define process_special_blocks(a,b,c,d)	S_process_special_blocks(aTHX_ a,b,c,d)
+#define ref_array_or_hash(a)	S_ref_array_or_hash(aTHX_ a)
 #define refkids(a,b)		S_refkids(aTHX_ a,b)
 #define scalar_mod_type		S_scalar_mod_type
 #define scalarboolean(a)	S_scalarboolean(aTHX_ a)
