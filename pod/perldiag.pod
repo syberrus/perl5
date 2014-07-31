@@ -601,6 +601,17 @@ either with open() or binmode().
 (F) C<caller> tried to set C<@DB::args>, but found it tied.  Tying C<@DB::args>
 is not supported.  (Before this error was added, it used to crash.)
 
+=item Cannot smartmatch against a%s
+
+(F) You cannot use an array, hash, or slice as the right argument of
+the smartmatch operator (C<~~>) or as the argument to C<when()>.
+
+=item Cannot smartmatch against an unblessed %s reference
+
+(F) The only unblessed references usable on the right side of the
+smartmatch operator (C<~~>) or as the argument to C<when()> are code
+references and regular expressions (C<qr//>).
+
 =item Cannot tie unreifiable array
 
 (P) You somehow managed to call C<tie> on an array that does not
