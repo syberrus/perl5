@@ -212,16 +212,16 @@ sub check_outside1 { is($_, "inside", "\$_ is not lexically scoped") }
     my ($ok1, $ok2);
     given("Hello, world!") {
 	when(qr/lo/)
-	    { $ok1 = 'y'; continue}
+	    { $ok1 = 'Y'; continue}
 	when(/lo/)
-	    { $ok1 = 'n'; continue}
+	    { $ok1 .= 'y'; continue}
 	when(qr/^(Hello,|Goodbye cruel) world[!.?]/)
 	    { $ok2 = 'Y'; continue}
 	when(/^(Hello,|Goodbye cruel) world[!.?]/)
-	    { $ok2 = 'n'; continue}
+	    { $ok2 .= 'y'; continue}
     }
-    is($ok1, 'y', "regex 1");
-    is($ok2, 'Y', "regex 2");
+    is($ok1, 'Yy', "regex 1");
+    is($ok2, 'Yy', "regex 2");
 
     given("hello whirled") {
 	$ok1 = 42 when ${qr/llo/}
@@ -1089,7 +1089,7 @@ GIVEN5:
     my $ok;
     given (@list) {
             is @list, 6, 'given(@array)';
-            when (@list) {
+            when ("".\@list) {
                 $ok = 3;
             }
     }
@@ -1100,8 +1100,8 @@ GIVEN5:
     my %list = map { $_ => $_ } "a" .. "f";
     my $ok;
     given (%list) {
-            is $_, scalar(%list), 'given(%hash)';
-            when (%list) {
+            is $_, \%list, 'given(%hash)';
+            when ("".\%list) {
                 $ok += 1;
                 continue;
             }

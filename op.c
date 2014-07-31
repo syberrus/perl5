@@ -6965,7 +6965,7 @@ Perl_newWHENOP(pTHX_ OP *cond, OP *block)
     else {
 	cond_op = newBINOP(OP_SMARTMATCH, OPf_SPECIAL,
 		newDEFSVOP(),
-		scalar(cond));
+                scalar(cond));
     }
     
     return newGIVWHENOP(cond_op, block, OP_ENTERWHEN, OP_LEAVEWHEN, 0);
@@ -9360,44 +9360,52 @@ OP *
 Perl_ck_smartmatch(pTHX_ OP *o)
 {
     dVAR;
+    OP *first, *second;
+
     PERL_ARGS_ASSERT_CK_SMARTMATCH;
-    if (0 == (o->op_flags & OPf_SPECIAL)) {
-	OP *first  = cBINOPo->op_first;
-	OP *second = OP_SIBLING(first);
-	
-	/* Implicitly take a reference to an array or hash */
 
-        /* remove the original two siblings, then add back the
-         * (possibly different) first and second sibs.
-         */
-        op_sibling_splice(o, NULL, 1, NULL);
-        op_sibling_splice(o, NULL, 1, NULL);
+    first  = cBINOPo->op_first;
+    second = OP_SIBLING(first);
+	
+    /* Implicitly take a reference to an array or hash */
+
+    /* remove the original two siblings, then add back the
+     * (possibly different) first and second sibs.
+     */
+    op_sibling_splice(o, NULL, 1, NULL);
+    op_sibling_splice(o, NULL, 1, NULL);
+
+    if (0 == (o->op_flags & OPf_SPECIAL)) { 
 	first  = ref_array_or_hash(first);
-        switch (second->op_type) {
-        case OP_RV2AV:
-        case OP_PADAV:
-            Perl_croak(aTHX_ "Cannot smartmatch against an array");
-        case OP_RV2HV:
-        case OP_PADHV:
-            Perl_croak(aTHX_ "Cannot smartmatch against an hash");
-        case OP_ASLICE:
-        case OP_KVASLICE:
-        case OP_HSLICE:
-        case OP_KVHSLICE:
-            Perl_croak(aTHX_ "Cannot smartmatch against a slice");
-            
-        default:
-            break;
-        }
+    }
 
-        op_sibling_splice(o, NULL, 0, second);
-        op_sibling_splice(o, NULL, 0, first);
+    switch (second->op_type) {
+    case OP_RV2AV:
+    case OP_PADAV:
+        /* diag_listed_as: Cannot smartmatch against a%s */
+        Perl_croak(aTHX_ "Cannot smartmatch against an array");
+    case OP_RV2HV:
+    case OP_PADHV:
+        /* diag_listed_as: Cannot smartmatch against a%s */
+        Perl_croak(aTHX_ "Cannot smartmatch against an hash");
+    case OP_ASLICE:
+    case OP_KVASLICE:
+    case OP_HSLICE:
+    case OP_KVHSLICE:
+        /* diag_listed_as: Cannot smartmatch against a%s */
+        Perl_croak(aTHX_ "Cannot smartmatch against a slice");
+
+    default:
+        break;
+    }
+
+    op_sibling_splice(o, NULL, 0, second);
+    op_sibling_splice(o, NULL, 0, first);
 	
-	/* Implicitly take a reference to a regular expression on the right*/
-	if (second->op_type == OP_MATCH) {
-	    second->op_type = OP_QR;
-	    second->op_ppaddr = PL_ppaddr[OP_QR];
-        }
+    /* Implicitly take a reference to a regular expression on the right*/
+    if (second->op_type == OP_MATCH) {
+        second->op_type = OP_QR;
+        second->op_ppaddr = PL_ppaddr[OP_QR];
     }
     
     return o;
