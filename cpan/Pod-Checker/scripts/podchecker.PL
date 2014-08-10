@@ -110,7 +110,7 @@ results, call B<podchecker> with one single argument only.
 
 =head1 SEE ALSO
 
-L<Pod::Parser> and L<Pod::Checker>
+L<Pod::Simple> and L<Pod::Checker>
 
 =head1 AUTHORS
 

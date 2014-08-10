@@ -456,7 +456,6 @@ while (<$manifest_fh>) {
 }
 close $manifest_fh, or die "Can't close $MANIFEST";
 
-
 # Pod::Checker messages to suppress
 my @suppressed_messages = (
     "(section) in",                         # Checker is wrong to flag this
@@ -544,7 +543,7 @@ my $add_link = 0;
 my $show_all = 0;
 my $pedantic = 0;
 
-my $do_upstream_cpan = 0; # Assume that are to skip anything in /cpan
+my $do_upstream_cpan = 0; # Assume that we are to skip anything in /cpan
 my $do_deltas = 0;        # And stable perldeltas
 
 while (@ARGV && substr($ARGV[0], 0, 1) eq '-') {
@@ -617,7 +616,8 @@ elsif ($has_input_files) {
 
 our %problems;  # potential problems found in this run
 
-package My::Pod::Checker {      # Extend Pod::Checker
+package My::Pod::Checker {
+    # Extend Pod::Checker
     use parent 'Pod::Checker';
 
     # Uses inside out hash to protect from typos
@@ -625,7 +625,7 @@ package My::Pod::Checker {      # Extend Pod::Checker
     my %indents;            # Stack of indents from =over's in effect for
                             # current line
     my %current_indent;     # Current line's indent
-    my %filename;           # The pod is store in this file
+    my %filename;           # The pod is stored in this file
     my %skip;               # is SKIP set for this pod
     my %in_NAME;            # true if within NAME section
     my %in_begin;           # true if within =begin section
@@ -719,6 +719,7 @@ package My::Pod::Checker {      # Extend Pod::Checker
         $message =~ s/^\d+\s+//;
         return if main::suppressed($message);
 
+        # new Pod::Checker::poderror
         $self->SUPER::poderror($opts, @_);
 
         $opts->{parameter} = "" unless $opts->{parameter};
@@ -795,7 +796,25 @@ package My::Pod::Checker {      # Extend Pod::Checker
         my ($self, $paragraph, $line_num, $pod_para) = @_;
         $self->check_encoding($paragraph, $line_num, $pod_para);
 
+        # No verbatim() found in new Pod::Checker
         $self->SUPER::verbatim($paragraph, $line_num, $pod_para);
+        # Old Pod::Checker::verbatim();
+        # note internal methods _preproc_par() and
+        # _commands_in_paragraphs()
+#sub verbatim {
+#    ## Nothing particular to check
+#    my ($self, $paragraph, $line_num, $pod_para) = @_;
+#
+#    $self->_preproc_par($paragraph);
+#    $self->_commands_in_paragraphs($paragraph, $pod_para);
+#
+#    if($self->{_current_head1} eq 'NAME') {
+#        my ($file, $line) = $pod_para->file_line;
+#        $self->poderror({ -line => $line, -file => $file,
+#            -severity => 'WARNING',
+#            -msg => 'Verbatim paragraph in NAME section' });
+#    }
+#}
 
         my $addr = Scalar::Util::refaddr $self;
 
@@ -835,7 +854,29 @@ package My::Pod::Checker {      # Extend Pod::Checker
         my ($self, $paragraph, $line_num, $pod_para) = @_;
         $self->check_encoding($paragraph, $line_num, $pod_para);
 
+        # No textblock() in new Pod::Checker
         $self->SUPER::textblock($paragraph, $line_num, $pod_para);
+        # Old Pod::Checker::textblock()
+        # note internal methods _preproc_par() and
+        # _commands_in_paragraphs()
+#sub textblock {
+#    my ($self, $paragraph, $line_num, $pod_para) = @_;
+#    my ($file, $line) = $pod_para->file_line;
+#
+#    $self->_preproc_par($paragraph);
+#    $self->_commands_in_paragraphs($paragraph, $pod_para);
+#
+#    # skip this paragraph if in a =begin block
+#    unless($self->{_have_begin}) {
+#        my $block = $self->interpolate_and_check($paragraph, $line,$file);
+#        if($self->{_current_head1} eq 'NAME') {
+#            if($block =~ /^\s*(\S+?)\s*[,-]/) {
+#                # this is the canonical name
+#                $self->{-name} = $1 unless(defined $self->{-name});
+#            }
+#        }
+#    }
+#}
 
         my ($file, $line) = $pod_para->file_line;
         my $addr = Scalar::Util::refaddr $self;
@@ -974,7 +1015,249 @@ package My::Pod::Checker {      # Extend Pod::Checker
                                   : 0;
 
         }
+        # No command() in new Pod::Checker.
         $self->SUPER::command($cmd, $paragraph, $line_num, $pod_para);
+        # In old Pod::Checker:
+#sub command {
+#    my ($self, $cmd, $paragraph, $line_num, $pod_para) = @_;
+#    my ($file, $line) = $pod_para->file_line;
+#    ## Check the command syntax
+#    my $arg; # this will hold the command argument
+#    if (! $VALID_COMMANDS{$cmd}) {
+#       $self->poderror({ -line => $line, -file => $file, -severity => 'ERROR',
+#                         -msg => "Unknown command '$cmd'" });
+#    }
+#    else { # found a valid command
+#        $self->{_commands}++; # delete this line if below is enabled again
+#
+#	$self->_commands_in_paragraphs($paragraph, $pod_para);
+#
+#        ##### following check disabled due to strong request
+#        #if(!$self->{_commands}++ && $cmd !~ /^head/) {
+#        #    $self->poderror({ -line => $line, -file => $file,
+#        #         -severity => 'WARNING',
+#        #         -msg => "file does not start with =head" });
+#        #}
+#
+#        # check syntax of particular command
+#        if($cmd eq 'over') {
+#            # check for argument
+#            $arg = $self->interpolate_and_check($paragraph, $line,$file);
+#            my $indent = 4; # default
+#            if($arg && $arg =~ /^\s*(\d+)\s*$/) {
+#                $indent = $1;
+#            }
+#            # start a new list
+#            $self->_open_list($indent,$line,$file);
+#        }
+#        elsif($cmd eq 'item') {
+#            # are we in a list?
+#            unless(@{$self->{_list_stack}}) {
+#                $self->poderror({ -line => $line, -file => $file,
+#                     -severity => 'ERROR',
+#                     -msg => '=item without previous =over' });
+#                # auto-open in case we encounter many more
+#                $self->_open_list('auto',$line,$file);
+#            }
+#            my $list = $self->{_list_stack}->[0];
+#            # check whether the previous item had some contents
+#            if(defined $self->{_list_item_contents} &&
+#              $self->{_list_item_contents} == 0) {
+#                $self->poderror({ -line => $line, -file => $file,
+#                     -severity => 'WARNING',
+#                     -msg => 'previous =item has no contents' });
+#            }
+#            if($list->{_has_par}) {
+#                $self->poderror({ -line => $line, -file => $file,
+#                     -severity => 'WARNING',
+#                     -msg => 'preceding non-item paragraph(s)' });
+#                delete $list->{_has_par};
+#            }
+#            # check for argument
+#            $arg = $self->interpolate_and_check($paragraph, $line, $file);
+#            if($arg && $arg =~ /(\S+)/) {
+#                $arg =~ s/[\s\n]+$//;
+#                my $type;
+#                if($arg =~ /^[*]\s*(\S*.*)/) {
+#                  $type = 'bullet';
+#                  $self->{_list_item_contents} = $1 ? 1 : 0;
+#                  $arg = $1;
+#                }
+#                elsif($arg =~ /^\d+\.?\s+(\S*)/) {
+#                  $type = 'number';
+#                  $self->{_list_item_contents} = $1 ? 1 : 0;
+#                  $arg = $1;
+#                }
+#                else {
+#                  $type = 'definition';
+#                  $self->{_list_item_contents} = 1;
+#                }
+#                my $first = $list->type();
+#                if($first && $first ne $type) {
+#                    $self->poderror({ -line => $line, -file => $file,
+#                       -severity => 'WARNING',
+#                       -msg => "=item type mismatch ('$first' vs. '$type')"});
+#                }
+#                else { # first item
+#                    $list->type($type);
+#                }
+#            }
+#            else {
+#                $self->poderror({ -line => $line, -file => $file,
+#                     -severity => 'WARNING',
+#                     -msg => 'No argument for =item' });
+#                $arg = ' '; # empty
+#                $self->{_list_item_contents} = 0;
+#            }
+#            # add this item
+#            $list->item($arg);
+#            # remember this node
+#            $self->node($arg);
+#        }
+#        elsif($cmd eq 'back') {
+#            # check if we have an open list
+#            unless(@{$self->{_list_stack}}) {
+#                $self->poderror({ -line => $line, -file => $file,
+#                         -severity => 'ERROR',
+#                         -msg => '=back without previous =over' });
+#            }
+#            else {
+#                # check for spurious characters
+#                $arg = $self->interpolate_and_check($paragraph, $line,$file);
+#                if($arg && $arg =~ /\S/) {
+#                    $self->poderror({ -line => $line, -file => $file,
+#                         -severity => 'ERROR',
+#                         -msg => 'Spurious character(s) after =back' });
+#                }
+#                # close list
+#                my $list = $self->_close_list($line,$file);
+#                # check for empty lists
+#                if(!$list->item() && $self->{-warnings}) {
+#                    $self->poderror({ -line => $line, -file => $file,
+#                         -severity => 'WARNING',
+#                         -msg => 'No items in =over (at line ' .
+#                         $list->start() . ') / =back list'});
+#                }
+#            }
+#        }
+#        elsif($cmd =~ /^head(\d+)/) {
+#            my $hnum = $1;
+#            $self->{"_have_head_$hnum"}++; # count head types
+#            if($hnum > 1 && !$self->{'_have_head_'.($hnum -1)}) {
+#              $self->poderror({ -line => $line, -file => $file,
+#                   -severity => 'WARNING',
+#                   -msg => "=head$hnum without preceding higher level"});
+#            }
+#            # check whether the previous =head section had some contents
+#            if(defined $self->{_commands_in_head} &&
+#              $self->{_commands_in_head} == 0 &&
+#              defined $self->{_last_head} &&
+#              $self->{_last_head} >= $hnum) {
+#                $self->poderror({ -line => $line, -file => $file,
+#                     -severity => 'WARNING',
+#                     -msg => 'empty section in previous paragraph'});
+#            }
+#            $self->{_commands_in_head} = -1;
+#            $self->{_last_head} = $hnum;
+#            # check if there is an open list
+#            if(@{$self->{_list_stack}}) {
+#                my $list;
+#                while(($list = $self->_close_list($line,$file)) &&
+#                  $list->indent() ne 'auto') {
+#                    $self->poderror({ -line => $line, -file => $file,
+#                         -severity => 'ERROR',
+#                         -msg => '=over on line '. $list->start() .
+#                         " without closing =back (at $cmd)" });
+#                }
+#            }
+#            # remember this node
+#            $arg = $self->interpolate_and_check($paragraph, $line,$file);
+#            $arg =~ s/[\s\n]+$//s;
+#            $self->node($arg);
+#            unless(length($arg)) {
+#                $self->poderror({ -line => $line, -file => $file,
+#                     -severity => 'ERROR',
+#                     -msg => "empty =$cmd"});
+#            }
+#            if($cmd eq 'head1') {
+#                $self->{_current_head1} = $arg;
+#            } else {
+#                $self->{_current_head1} = '';
+#            }
+#        }
+#        elsif($cmd eq 'begin') {
+#            if($self->{_have_begin}) {
+#                # already have a begin
+#                $self->poderror({ -line => $line, -file => $file,
+#                     -severity => 'ERROR',
+#                     -msg => q{Nested =begin's (first at line } .
+#                     $self->{_have_begin} . ')'});
+#            }
+#            else {
+#                # check for argument
+#                $arg = $self->interpolate_and_check($paragraph, $line,$file);
+#                unless($arg && $arg =~ /(\S+)/) {
+#                    $self->poderror({ -line => $line, -file => $file,
+#                         -severity => 'ERROR',
+#                         -msg => 'No argument for =begin'});
+#                }
+#                # remember the =begin
+#                $self->{_have_begin} = "$line:$1";
+#            }
+#        }
+#        elsif($cmd eq 'end') {
+#            if($self->{_have_begin}) {
+#                # close the existing =begin
+#                $self->{_have_begin} = '';
+#                # check for spurious characters
+#                $arg = $self->interpolate_and_check($paragraph, $line,$file);
+#                # the closing argument is optional
+#                #if($arg && $arg =~ /\S/) {
+#                #    $self->poderror({ -line => $line, -file => $file,
+#                #         -severity => 'WARNING',
+#                #         -msg => "Spurious character(s) after =end" });
+#                #}
+#            }
+#            else {
+#                # don't have a matching =begin
+#                $self->poderror({ -line => $line, -file => $file,
+#                     -severity => 'ERROR',
+#                     -msg => '=end without =begin' });
+#            }
+#        }
+#        elsif($cmd eq 'for') {
+#            unless($paragraph =~ /\s*(\S+)\s*/) {
+#                $self->poderror({ -line => $line, -file => $file,
+#                     -severity => 'ERROR',
+#                     -msg => '=for without formatter specification' });
+#            }
+#            $arg = ''; # do not expand paragraph below
+#        }
+#        elsif($cmd =~ /^(pod|cut)$/) {
+#            # check for argument
+#            $arg = $self->interpolate_and_check($paragraph, $line,$file);
+#            if($arg && $arg =~ /(\S+)/) {
+#                $self->poderror({ -line => $line, -file => $file,
+#                      -severity => 'ERROR',
+#                      -msg => "Spurious text after =$cmd"});
+#            }
+#	    if($cmd eq 'cut' && (!$self->{_PREVIOUS} || $self->{_PREVIOUS} eq 'cut')) {
+#                $self->poderror({ -line => $line, -file => $file,
+#                      -severity => 'ERROR',
+#                      -msg => "Spurious =cut command"});
+#	    }
+#	    if($cmd eq 'pod' && $self->{_PREVIOUS} && $self->{_PREVIOUS} ne 'cut') {
+#                $self->poderror({ -line => $line, -file => $file,
+#                      -severity => 'ERROR',
+#                      -msg => "Spurious =pod command"});
+#	    }
+#        }
+#    $self->{_commands_in_head}++;
+#    ## Check the interior sequences in the command-text
+#    $self->interpolate_and_check($paragraph, $line,$file)
+#        unless(defined $arg);
+#    }
+#}
 
         $command_count{$addr}++;
 
@@ -1038,7 +1321,17 @@ package My::Pod::Checker {      # Extend Pod::Checker
                 return;
             }
         }
+        # No hyperlink() in new Pod-Checker
         return $self->SUPER::hyperlink($_[0]);
+        # From old Pod-Checker
+#sub hyperlink {
+#    my $self = shift;
+#    if($_[0]) {
+#        push(@{$self->{_links}}, $_[0]);
+#        return $_[0];
+#    }
+#    @{$self->{_links}};
+#}
     }
 
     sub node {
@@ -1052,6 +1345,7 @@ package My::Pod::Checker {      # Extend Pod::Checker
                                     ! $current_indent{$addr}
                                     || $linkable_item{$addr};
         }
+        # new Pod::Checker::node()
         return $self->SUPER::node($_[0]);
     }
 
@@ -1092,7 +1386,64 @@ package My::Pod::Checker {      # Extend Pod::Checker
         # ignores 2nd param, which is output file.  Always uses undef
 
         if (open my $in_fh, '<:bytes', $filename) {
+            # Pod::Parser::parse_from_filehandle
             $self->SUPER::parse_from_filehandle($in_fh, undef);
+#sub parse_from_filehandle {
+#    my $self = shift;
+#    my %opts = (ref $_[0] eq 'HASH') ? %{ shift() } : ();
+#    my ($in_fh, $out_fh) = @_;
+#    $in_fh = \*STDIN  unless ($in_fh);
+#    local *myData = $self;  ## alias to avoid deref-ing overhead
+#    local *myOpts = ($myData{_PARSEOPTS} ||= {});  ## get parse-options
+#    local $_;
+#
+#    ## Put this stream at the top of the stack and do beginning-of-input
+#    ## processing. NOTE that $in_fh might be reset during this process.
+#    my $topstream = $self->_push_input_stream($in_fh, $out_fh);
+#    (exists $opts{-cutting})  and  $self->cutting( $opts{-cutting} );
+#
+#    ## Initialize line/paragraph
+#    my ($textline, $paragraph) = ('', '');
+#    my ($nlines, $plines) = (0, 0);
+#
+#    ## Use <$fh> instead of $fh->getline where possible (for speed)
+#    $_ = ref $in_fh;
+#    my $tied_fh = (/^(?:GLOB|FileHandle|IO::\w+)$/  or  tied $in_fh);
+#
+#    ## Read paragraphs line-by-line
+#    while (defined ($textline = $tied_fh ? <$in_fh> : $in_fh->getline)) {
+#        $textline = $self->preprocess_line($textline, ++$nlines);
+#        next  unless ((defined $textline)  &&  (length $textline));
+#
+#        if ((! length $paragraph) && ($textline =~ /^==/)) {
+#            ## '==' denotes a one-line command paragraph
+#            $paragraph = $textline;
+#            $plines    = 1;
+#            $textline  = '';
+#        } else {
+#            ## Append this line to the current paragraph
+#            $paragraph .= $textline;
+#            ++$plines;
+#        }
+#
+#        ## See if this line is blank and ends the current paragraph.
+#        ## If it isn't, then keep iterating until it is.
+#        next unless (($textline =~ /^[^\S\r\n]*[\r\n]*$/)
+#                                     && (length $paragraph));
+#
+#        ## Now process the paragraph
+#        parse_paragraph($self, $paragraph, ($nlines - $plines) + 1);
+#        $paragraph = '';
+#        $plines = 0;
+#    }
+#    ## Don't forget about the last paragraph in the file
+#    if (length $paragraph) {
+#       parse_paragraph($self, $paragraph, ($nlines - $plines) + 1)
+#    }
+#
+#    ## Now pop the input stream off the top of the input stack.
+#    $self->_pop_input_stream();
+#}
             close $in_fh;
             return 1;
         }
@@ -1104,7 +1455,8 @@ package My::Pod::Checker {      # Extend Pod::Checker
     }
 }
 
-package Tie_Array_to_FH {  # So printing actually goes to an array
+package Tie_Array_to_FH {
+    # So printing actually goes to an array
 
     my %array;
 
