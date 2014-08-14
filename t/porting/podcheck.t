@@ -1906,15 +1906,7 @@ foreach my $filename (@files) {
     }
 }
 
-if (! $regen
-    && ! ok (keys %known_problems == 0, "The known problems database includes no references to non-existent files"))
-{
-    note("The following files were not found: "
-         . join ", ", keys %known_problems);
-    note("They will automatically be removed from the db the next time");
-    note("  cd t; ./perl -I../lib porting/podcheck.t --regen");
-    note("is run");
-}
+non_regen_known_problems_notice($regen, \%known_problems);
 
 final_notification(
     \%files_with_unknown_issues, \%files_with_fixes, $known_issues);
@@ -1985,6 +1977,19 @@ To teach this test script that the potential problems have been fixed,
 $how_to
 EOF
         );
+    }
+}
+
+sub non_regen_known_problems_notice {
+    my ($regen, $known_problems) = @_;
+    if (! $regen
+        && ! ok (keys %{$known_problems} == 0, "The known problems database includes no references to non-existent files"))
+    {
+        note("The following files were not found: "
+             . join ", ", keys %{$known_problems});
+        note("They will automatically be removed from the db the next time");
+        note("  cd t; ./perl -I../lib porting/podcheck.t --regen");
+        note("is run");
     }
 }
 
