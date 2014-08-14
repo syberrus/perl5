@@ -1916,19 +1916,31 @@ if (! $regen
     note("is run");
 }
 
-my $how_to = <<EOF;
+final_notification(
+    \%files_with_unknown_issues, \%files_with_fixes, $known_issues);
+
+if ($regen) {
+    chdir $original_dir || die "Can't change directories to $original_dir";
+    close_and_rename($copy_fh);
+}
+
+####################
+
+sub final_notification {
+    my ($files_with_unknown_issues, $files_with_fixes, $known_issues) = @_;
+    my $how_to = <<EOF;
    run this test script by hand, using the following formula (on
    Un*x-like machines):
         cd t
         ./perl -I../lib porting/podcheck.t --regen
 EOF
 
-if (%files_with_unknown_issues) {
-    my $were_count_files = scalar keys %files_with_unknown_issues;
-    $were_count_files = ($were_count_files == 1)
-                        ? "was $were_count_files file"
-                        : "were $were_count_files files";
-    my $message = <<EOF;
+    if (%{$files_with_unknown_issues}) {
+        my $were_count_files = scalar keys %{$files_with_unknown_issues};
+        $were_count_files = ($were_count_files == 1)
+                            ? "was $were_count_files file"
+                            : "were $were_count_files files";
+        my $message = <<EOF;
 
 HOW TO GET THIS .t TO PASS
 
@@ -1956,11 +1968,11 @@ $how_to
    That should cause all current potential problems to be accepted by
    the program, so that the next time it runs, they won't be flagged.
 EOF
-    if (%files_with_fixes) {
-        $message .= "   This step will also take care of the files that have fixes in them\n";
-    }
+        if (%files_with_fixes) {
+            $message .= "   This step will also take care of the files that have fixes in them\n";
+        }
 
-    $message .= <<EOF;
+        $message .= <<EOF;
    For a few files, such as perltoc, certain issues will always be
    expected, and more of the same will be added over time.  For those,
    before you do the regen, you can edit
@@ -1969,16 +1981,12 @@ EOF
    and change the count of known potential problems to -1.
 EOF
 
-    note($message);
-} elsif (%files_with_fixes) {
-    note(<<EOF
+        note($message);
+    } elsif (%{$files_with_fixes}) {
+        note(<<EOF
 To teach this test script that the potential problems have been fixed,
 $how_to
 EOF
-    );
-}
-
-if ($regen) {
-    chdir $original_dir || die "Can't change directories to $original_dir";
-    close_and_rename($copy_fh);
+        );
+    }
 }
