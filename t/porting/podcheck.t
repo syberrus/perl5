@@ -1802,30 +1802,55 @@ if (! $has_input_files) {
 # check targets.  If you change the sort order, you need to run --regen before
 # committing so that future commits that do run regen don't show irrelevant
 # changes.
-if ($regen) {
-    foreach (sort { lc $a cmp lc $b } keys %valid_modules) {
-        my_safer_print($copy_fh, $_, "\n");
+regen_sort_valid($regen, \%valid_modules, $copy_fh);
+
+# Now ready to output the messages.
+my $known_problems = \%known_problems;
+foreach my $filename (@files) {
+    $known_problems = analyze_one_file($filename, \%filename_to_checker, $regen, \%problems,
+        $known_problems, $copy_fh, $pedantic, $line_length, $C_not_linked, $C_with_slash);
+}
+
+non_regen_known_problems_notice($regen, $known_problems);
+
+final_notification(
+    \%files_with_unknown_issues, \%files_with_fixes, $known_issues);
+
+regen_cleanup($regen, $original_dir, $copy_fh);
+
+#################### SUBROUTINES ####################
+
+sub regen_sort_valid {
+    my ($regen, $valid_modules, $copy_fh) = @_;
+    if ($regen) {
+        foreach (sort { lc $a cmp lc $b } keys %{$valid_modules}) {
+            my_safer_print($copy_fh, $_, "\n");
+        }
     }
 }
 
-# Now ready to output the messages.
-foreach my $filename (@files) {
+sub analyze_one_file {
+    my ($filename, $filename_to_checker, $regen, $problems,
+        $known_problems, $copy_fh, $pedantic, $line_length, $C_not_linked, $C_with_slash) = @_;
+
+    my $these_problems = {};
+    $these_problems = $problems->{$filename};
     my $canonical = canonicalize($filename);
     SKIP: {
-        my $skip = $filename_to_checker{$filename}->get_skip // "";
+        my $skip = $filename_to_checker->{$filename}->get_skip // "";
 
         if ($regen) {
-            foreach my $message ( sort keys %{$problems{$filename}}) {
+            foreach my $message ( sort keys %{$these_problems}) {
                 my $count;
 
                 # Preserve a negative setting.
-                if ($known_problems{$canonical}{$message}
-                    && $known_problems{$canonical}{$message} < 0)
+                if ($known_problems->{$canonical}{$message}
+                    && $known_problems->{$canonical}{$message} < 0)
                 {
-                    $count = $known_problems{$canonical}{$message};
+                    $count = $known_problems->{$canonical}{$message};
                 }
                 else {
-                    $count = @{$problems{$filename}{$message}};
+                    $count = @{$these_problems->{$message}};
                 }
                 my_safer_print($copy_fh, $canonical . "\t$message\t$count\n");
             }
@@ -1838,14 +1863,14 @@ foreach my $filename (@files) {
         my $indent = '  ';
 
         my $total_known = 0;
-        foreach my $message ( sort keys %{$problems{$filename}}) {
-            $known_problems{$canonical}{$message} = 0
-                                    if ! $known_problems{$canonical}{$message};
+        foreach my $message ( sort keys %{$these_problems}) {
+            $known_problems->{$canonical}{$message} = 0
+                                    if ! $known_problems->{$canonical}{$message};
             my $diagnostic = "";
-            my $problem_count = scalar @{$problems{$filename}{$message}};
+            my $problem_count = scalar @{$these_problems->{$message}};
             $total_known += $problem_count;
-            next if $known_problems{$canonical}{$message} < 0;
-            if ($problem_count > $known_problems{$canonical}{$message}) {
+            next if $known_problems->{$canonical}{$message} < 0;
+            if ($problem_count > $known_problems->{$canonical}{$message}) {
 
                 # Here we are about to output all the messages for this type,
                 # subtract back this number we previously added in.
@@ -1854,9 +1879,9 @@ foreach my $filename (@files) {
                 $diagnostic .= $indent . qq{"$message"};
                 if ($problem_count > 2) {
                     $diagnostic .= "  ($problem_count occurrences,"
-			. " expected $known_problems{$canonical}{$message})";
+			. " expected $known_problems->{$canonical}{$message})";
                 }
-                foreach my $problem (@{$problems{$filename}{$message}}) {
+                foreach my $problem (@{$these_problems->{$message}}) {
                     $diagnostic .= " " if $problem_count == 1;
                     $diagnostic .= "\n$indent$indent";
                     $diagnostic .= "$problem->{parameter}" if $problem->{parameter};
@@ -1865,8 +1890,8 @@ foreach my $filename (@files) {
                 }
                 $diagnostic .= "\n";
                 $files_with_unknown_issues{$filename} = 1;
-            } elsif ($problem_count < $known_problems{$canonical}{$message}) {
-               $diagnostic = output_thanks($filename, $known_problems{$canonical}{$message}, $problem_count, $message);
+            } elsif ($problem_count < $known_problems->{$canonical}{$message}) {
+               $diagnostic = output_thanks($filename, $known_problems->{$canonical}{$message}, $problem_count, $message);
                $thankful_diagnostics++;
             }
             push @diagnostics, $diagnostic if $diagnostic;
@@ -1875,15 +1900,15 @@ foreach my $filename (@files) {
         # The above loop has output messages where there are current potential
         # issues.  But it misses where there were some that have been entirely
         # fixed.  For those, we need to look through the old issues
-        foreach my $message ( sort keys %{$known_problems{$canonical}}) {
-            next if $problems{$filename}{$message};
-            next if ! $known_problems{$canonical}{$message};
-            next if $known_problems{$canonical}{$message} < 0; # Preserve negs
+        foreach my $message ( sort keys %{$known_problems->{$canonical}}) {
+            next if $these_problems->{$message};
+            next if ! $known_problems->{$canonical}{$message};
+            next if $known_problems->{$canonical}{$message} < 0; # Preserve negs
 
             next if !$pedantic and $message =~ 
                 /^(?:\Q$line_length\E|\Q$C_not_linked\E|\Q$C_with_slash\E)/;
 
-            my $diagnostic = output_thanks($filename, $known_problems{$canonical}{$message}, 0, $message);
+            my $diagnostic = output_thanks($filename, $known_problems->{$canonical}{$message}, 0, $message);
             push @diagnostics, $diagnostic if $diagnostic;
             $thankful_diagnostics++ if $diagnostic;
         }
@@ -1902,18 +1927,23 @@ foreach my $filename (@files) {
             "See end of this test output for your options on silencing this");
         }
 
-        delete $known_problems{$canonical};
+        delete $known_problems->{$canonical};
     }
+    return $known_problems;
 }
 
-non_regen_known_problems_notice($regen, \%known_problems);
-
-final_notification(
-    \%files_with_unknown_issues, \%files_with_fixes, $known_issues);
-
-regen_cleanup($regen, $original_dir, $copy_fh);
-
-####################
+sub non_regen_known_problems_notice {
+    my ($regen, $known_problems) = @_;
+    if (! $regen
+        && ! ok (keys %{$known_problems} == 0, "The known problems database includes no references to non-existent files"))
+    {
+        note("The following files were not found: "
+             . join ", ", keys %{$known_problems});
+        note("They will automatically be removed from the db the next time");
+        note("  cd t; ./perl -I../lib porting/podcheck.t --regen");
+        note("is run");
+    }
+}
 
 sub final_notification {
     my ($files_with_unknown_issues, $files_with_fixes, $known_issues) = @_;
@@ -1977,19 +2007,6 @@ To teach this test script that the potential problems have been fixed,
 $how_to
 EOF
         );
-    }
-}
-
-sub non_regen_known_problems_notice {
-    my ($regen, $known_problems) = @_;
-    if (! $regen
-        && ! ok (keys %{$known_problems} == 0, "The known problems database includes no references to non-existent files"))
-    {
-        note("The following files were not found: "
-             . join ", ", keys %{$known_problems});
-        note("They will automatically be removed from the db the next time");
-        note("  cd t; ./perl -I../lib porting/podcheck.t --regen");
-        note("is run");
     }
 }
 
