@@ -1919,10 +1919,7 @@ if (! $regen
 final_notification(
     \%files_with_unknown_issues, \%files_with_fixes, $known_issues);
 
-if ($regen) {
-    chdir $original_dir || die "Can't change directories to $original_dir";
-    close_and_rename($copy_fh);
-}
+regen_cleanup($regen, $original_dir, $copy_fh);
 
 ####################
 
@@ -1988,5 +1985,13 @@ To teach this test script that the potential problems have been fixed,
 $how_to
 EOF
         );
+    }
+}
+
+sub regen_cleanup {
+    my ($regen, $original_dir, $copy_fh) = @_;
+    if ($regen) {
+        chdir $original_dir || die "Can't change directories to $original_dir";
+        close_and_rename($copy_fh);
     }
 }
