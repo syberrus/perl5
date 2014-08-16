@@ -1,9 +1,35 @@
 #!/usr/bin/perl -w
 
 BEGIN {
+    unshift @INC, "t/lib";
+}
+use PodcheckUtils qw(
+    regen_sort_valid
+    analyze_one_file
+    non_regen_known_problems_notice
+    final_notification
+    regen_cleanup
+    my_safer_print
+    canonicalize
+    test_count_discrepancy
+    plan
+    ok
+    skip
+    note
+);
+BEGIN {
     chdir 't';
     unshift @INC, "../t/lib", "../lib";
 }
+BEGIN {
+    if ( $Config{usecrosscompile} ) {
+        print "1..0 # Not all files are available during cross-compilation\n";
+        exit 0;
+    }
+    require '../regen/regen_lib.pl';
+#    require './regen/regen_lib.pl';
+}
+
 
 use strict;
 use warnings;
@@ -16,23 +42,6 @@ use File::Find;
 use File::Spec;
 use Scalar::Util;
 use Text::Tabs;
-use PodcheckUtils qw(
-    regen_sort_valid
-    analyze_one_file
-    non_regen_known_problems_notice
-    final_notification
-    regen_cleanup
-    my_safer_print
-    canonicalize
-);
-
-BEGIN {
-    if ( $Config{usecrosscompile} ) {
-        print "1..0 # Not all files are available during cross-compilation\n";
-        exit 0;
-    }
-    require '../regen/regen_lib.pl';
-}
 
 sub DEBUG { 0 };
 
@@ -1827,3 +1836,4 @@ final_notification(
 
 regen_cleanup($regen, $original_dir, $copy_fh);
 
+END { test_count_discrepancy(); }

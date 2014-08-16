@@ -1,4 +1,7 @@
 package PodcheckUtils;
+BEGIN {
+    require './regen/regen_lib.pl';
+}
 use base qw( Exporter );
 our @EXPORT_OK = qw(
     regen_sort_valid
@@ -8,73 +11,64 @@ our @EXPORT_OK = qw(
     regen_cleanup
     my_safer_print
     canonicalize
+    test_count_discrepancy
+    plan
+    ok
+    skip
+    note
 );
 use File::Spec;
-#*skip = *Test::More::skip;
-#*note = *Test::More::note;
-#*ok = *Test::More::ok;
-#BEGIN { require '../regen/regen_lib.pl'; }
-BEGIN {
-    chdir 't';
-    unshift @INC, ("../t/lib", "../lib");
-    require '../regen/regen_lib.pl';
+
+our $current_test = 0;
+our $planned;
+sub plan {
+    my %plan = @_;
+    $planned = $plan{tests} + 1;    # +1 for final test that files haven't
+                                    # been removed
+    print "1..$planned\n";
+    return;
 }
 
-{   # Closure to contain a simple subset of test.pl.  This is to get rid of the
-    # unnecessary 'failed at' messages that would otherwise be output pointing
-    # to a particular line in this file.
+sub ok {
+    my $success = shift;
+    my $message = shift;
 
-    my $current_test = 0;
-    my $planned;
+    chomp $message;
 
-    sub plan {
-        my %plan = @_;
-        $planned = $plan{tests} + 1;    # +1 for final test that files haven't
-                                        # been removed
-        print "1..$planned\n";
-        return;
-    }
+    $current_test++;
+    print "not " unless $success;
+    print "ok $current_test - $message\n";
+    return $success;
+}
 
-    sub ok {
-        my $success = shift;
-        my $message = shift;
-
-        chomp $message;
-
+sub skip {
+    my $why = shift;
+    my $n    = @_ ? shift : 1;
+    for (1..$n) {
         $current_test++;
-        print "not " unless $success;
-        print "ok $current_test - $message\n";
-        return $success;
+        print "ok $current_test # skip $why\n";
     }
+    no warnings 'exiting';
+    last SKIP;
+}
 
-    sub skip {
-        my $why = shift;
-        my $n    = @_ ? shift : 1;
-        for (1..$n) {
-            $current_test++;
-            print "ok $current_test # skip $why\n";
-        }
-        no warnings 'exiting';
-        last SKIP;
-    }
+sub note {
+    my $message = shift;
 
-    sub note {
-        my $message = shift;
+    chomp $message;
 
-        chomp $message;
+    print $message =~ s/^/# /mgr;
+    print "\n";
+    return;
+}
 
-        print $message =~ s/^/# /mgr;
-        print "\n";
-        return;
-    }
-
-    END {
-        if ($planned && $planned != $current_test) {
-            print STDERR
-            "# Looks like you planned $planned tests but ran $current_test.\n";
-        }
+sub test_count_discrepancy {
+    if ($planned && $planned != $current_test) {
+        print STDERR
+        "# Looks like you planned $planned tests but ran $current_test.\n";
     }
 }
+
 { # Closure
     my $first_time = 1;
 
