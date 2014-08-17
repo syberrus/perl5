@@ -523,7 +523,7 @@ my %known_problems;
 
 # Pods given by the keys contain an interior node that is referred to from
 # outside it.
-my %has_referred_to_node;
+my $has_referred_to_node = {};
 
 my $show_counts = 0;
 my $regen = 0;
@@ -1013,7 +1013,7 @@ package My::Pod::Checker {
 
             # If the hyperlink is to an interior node of another page, save it
             # so that we can see if we need to parse normally skipped files.
-            $has_referred_to_node{$page} = 1 if $node;
+            $has_referred_to_node->{$page} = 1 if $node;
 
             # Ignore certain placeholder links in perldelta.  Check if the
             # link is page-level, and also check if to a node within the page
@@ -1114,11 +1114,11 @@ package Tie_Array_to_FH {  # So printing actually goes to an array
 
 
 my $filename_to_checker = {}; # Map a filename to it's pod checker object
-my %id_to_checker;      # Map a checksum to it's pod checker object
+my $id_to_checker = {}; # Map a checksum to it's pod checker object
 my $nodes = {};              # key is filename, values are nodes in that file.
 my $nodes_first_word = {};   # same, but value is first word of each node
 my $valid_modules = {};      # List of modules known to exist outside us.
-my %digests;            # checksums of files, whose names are the keys
+my $digests = {};       # checksums of files, whose names are the keys
 my $filename_to_pod = {};    # Map a filename to its pod NAME
 
 my $data_fh;
@@ -1333,7 +1333,7 @@ sub is_pod_file {
                         | $only_for_interior_links_re
                     /x) {
         $digest->add($contents);
-        $digests{$filename} = $digest->digest;
+        $digests->{$filename} = $digest->digest;
 
         # lib files aren't analyzed if they are duplicates of files copied
         # there from some other directory.  But to determine this, we need
@@ -1359,12 +1359,12 @@ sub is_pod_file {
                                   ^ \s* ( \S+?) \s* (?: [,-] | $ )/mx) {
                     my $name = $1;
                     $checker->name($name);
-                    $id_to_checker{$name} = $checker
+                    $id_to_checker->{$name} = $checker
                         if $filename =~ m{^cpan/};
                 }
             }
             elsif ($filename =~ m{^cpan/}) {
-                $id_to_checker{$digests{$filename}} = $checker;
+                $id_to_checker->{$digests->{$filename}} = $checker;
             }
         }
     }
@@ -1458,13 +1458,12 @@ plan (tests => scalar @files) if ! $regen;
 # My::Pod::Checker
 # digest_type
 # extract_pod()
-# %id_to_checker
-# %digests
+# $id_to_checker
+# $digests
 # $do_upstream_cpan
-# $duplicate_name only used within loop FILE
 # $only_for_interior_links_re 
 # $do_deltas
-# %has_referred_to_node;
+# $has_referred_to_node
 
 # $duplicate_name only used within loop FILE
 # $no_name only used within loop FILE
@@ -1524,7 +1523,7 @@ foreach my $filename (@files) {
         # If there is a match for this pod with something that we've already
         # processed, don't process it, and output why.
         my $prior_checker;
-        if (defined ($prior_checker = $id_to_checker{$id})
+        if (defined ($prior_checker = $id_to_checker->{$id})
             && $prior_checker != $checker)  # Could have defined the checker
                                             # earlier without pursuing it
         {
@@ -1535,9 +1534,9 @@ foreach my $filename (@files) {
             # identical too.
             my $prior_filename = $prior_checker->get_filename;
             my $same = (! $name
-                        || ($digests{$prior_filename}
-                            && $digests{$filename}
-                            && $digests{$prior_filename} eq $digests{$filename}));
+                        || ($digests->{$prior_filename}
+                            && $digests->{$filename}
+                            && $digests->{$prior_filename} eq $digests->{$filename}));
 
             # If they differ, it could be that the files differ for some
             # reason, but the pods they contain are identical.  Extract the
@@ -1606,7 +1605,7 @@ foreach my $filename (@files) {
     process_this_pod:
 
         # A unique pod.
-        $id_to_checker{$id} = $checker;
+        $id_to_checker->{$id} = $checker;
 
         my $parsed_for_links = ", but parsed for its interior links";
         if ((! $do_upstream_cpan && $filename =~ /^cpan/)
@@ -1627,7 +1626,7 @@ foreach my $filename (@files) {
                 croak("Unexpected file '$filename' encountered that has parsing for interior-linking only");
             }
 
-            if ($name && $has_referred_to_node{$name}) {
+            if ($name && $has_referred_to_node->{$name}) {
                 $checker->set_skip($checker->get_skip() . $parsed_for_links);
             }
         }
