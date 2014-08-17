@@ -296,33 +296,6 @@ my $vms_re = qr/ \. (?: com )? /x;
 # same way that that the special vms ones are.  This hash lists those.
 my %special_vms_files;
 
-# This is to get this to work across multiple file systems, including those
-# that are not case sensitive.  The db is stored in lower case, Un*x style,
-# and all file name comparisons are done that way.
-#sub canonicalize($) {
-#    my $input = shift;
-#    my ($volume, $directories, $file)
-#                    = File::Spec->splitpath(File::Spec->canonpath($input));
-#    # Assumes $volume is constant for everything in this directory structure
-#    $directories = "" if ! $directories;
-#    $file = "" if ! $file;
-#    $file = lc join '/', File::Spec->splitdir($directories), $file;
-#    $file =~ s! / /+ !/!gx;       # Multiple slashes => single slash
-#
-#    # The db is stored without the special suffixes that are there in VMS, so
-#    # strip them off to get the comparable name.  But some files on all
-#    # platforms have these suffixes, so this shouldn't happen for them, as any
-#    # of their db entries will have the suffixes in them.  The hash has been
-#    # populated with these files.
-#    if ($^O eq 'VMS'
-#        && $file =~ / ( $vms_re ) $ /x
-#        && ! exists $special_vms_files{$file})
-#    {
-#        $file =~ s/ $1 $ //x;
-#    }
-#    return $file;
-#}
-
 #####################################################
 # HOW IT WORKS (in general)
 #
@@ -372,9 +345,6 @@ my $INDENT = 7;             # default nroff indent
 
 # Our warning messages.  Better not have [('"] in them, as those are used as
 # delimiters for variable parts of the messages by poderror.
-my $broken_link = "Apparent broken link";
-my $broken_internal_link = "Apparent internal link is missing its forward slash";
-my $multiple_targets = "There is more than one target";
 my $duplicate_name = "Pod NAME already used";
 my $need_encoding = "Should have =encoding statement because have non-ASCII";
 my $encoding_first = "=encoding must be first command (if present)";
@@ -1748,6 +1718,20 @@ foreach my $filename (@files) {
 
 # Here, all files have been parsed, and all links and link targets are stored.
 # Now go through the files again and see which don't have matches.
+# $has_input_files
+# @files : used but not assigned to
+# %filename_to_checker : used but not assigned to
+# %nodes : used but not assigned to
+# %nodes_first_word : used and assigned to
+# %valid_modules : used but not assigned to
+# %filename_to_pod : used but not assigned to
+# # 3 following are only used within this block
+# $broken_link
+# $broken_internal_link
+# $multiple_targets
+my $broken_link = "Apparent broken link";
+my $broken_internal_link = "Apparent internal link is missing its forward slash";
+my $multiple_targets = "There is more than one target";
 if (! $has_input_files) {
     foreach my $filename (@files) {
         next if $filename_to_checker{$filename}->get_skip;
@@ -1815,6 +1799,9 @@ if (! $has_input_files) {
         }
     }
 }
+# XXX
+# In above block, we have %problem.  What is the relationship of this to
+# %problems declared above and used below?
 
 # If regenerating the data file, start with the modules for which we don't
 # check targets.  If you change the sort order, you need to run --regen before
