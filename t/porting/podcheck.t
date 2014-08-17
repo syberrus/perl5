@@ -16,6 +16,7 @@ use PodcheckUtils qw(
     ok
     skip
     note
+    check_all_files
 );
 BEGIN {
     chdir 't';
@@ -1114,13 +1115,13 @@ package Tie_Array_to_FH {  # So printing actually goes to an array
 }
 
 
-my %filename_to_checker; # Map a filename to it's pod checker object
+my $filename_to_checker = {}; # Map a filename to it's pod checker object
 my %id_to_checker;      # Map a checksum to it's pod checker object
-my %nodes;              # key is filename, values are nodes in that file.
-my %nodes_first_word;   # same, but value is first word of each node
-my %valid_modules;      # List of modules known to exist outside us.
+my $nodes = {};              # key is filename, values are nodes in that file.
+my $nodes_first_word = {};   # same, but value is first word of each node
+my $valid_modules = {};      # List of modules known to exist outside us.
 my %digests;            # checksums of files, whose names are the keys
-my %filename_to_pod;    # Map a filename to its pod NAME
+my $filename_to_pod = {};    # Map a filename to its pod NAME
 
 my $data_fh;
 open $data_fh, '<:bytes', $known_issues or die "Can't open $known_issues";
@@ -1146,12 +1147,14 @@ END
 my @existing_issues;
 
 
-while (<$data_fh>) {    # Read the database
+while (<$data_fh>) {
+    # Read the database
     chomp;
     next if /^\s*(?:#|$)/;  # Skip comment and empty lines
     if (/\t/) {
         next if $show_all;
-        if ($add_link) {    # The issues are saved and later output unchanged
+        if ($add_link) {
+            # The issues are saved and later output unchanged
             push @existing_issues, $_;
             next;
         }
@@ -1170,7 +1173,7 @@ while (<$data_fh>) {    # Read the database
         }
     }
     else {  # Lines without a tab are modules known to be valid
-        $valid_modules{$_} = 1
+        $valid_modules->{$_} = 1
     }
 }
 close $data_fh;
@@ -1183,10 +1186,10 @@ if ($add_link) {
         die "\"$module\" does not look like a module or man page"
             # Must look like (A or A::B or A::B::C ..., or foo(3C)
             if $module !~ /^ (?: \w+ (?: :: \w+ )* | \w+ \( \d \w* \) ) $/x;
-        $valid_modules{$module} = 1
+        $valid_modules->{$module} = 1
     }
     my_safer_print($copy_fh, $HEADER);
-    foreach (sort { lc $a cmp lc $b } keys %valid_modules) {
+    foreach (sort { lc $a cmp lc $b } keys %{$valid_modules}) {
         my_safer_print($copy_fh, $_, "\n");
     }
 
@@ -1317,7 +1320,7 @@ sub is_pod_file {
 
     push @files, $filename;
     my $checker = My::Pod::Checker->new($filename);
-    $filename_to_checker{$filename} = $checker;
+    $filename_to_checker->{$filename} = $checker;
 
     # In order to detect duplicate pods and only analyze them once, we
     # compute checksums for the file, so don't have to do an exact
@@ -1459,10 +1462,10 @@ foreach my $filename (@files) {
     # We may have already figured out some things in the process of generating
     # the file list.  If so, we have a $checker object already.  But if not,
     # generate one now.
-    my $checker = $filename_to_checker{$filename};
+    my $checker = $filename_to_checker->{$filename};
     if (! $checker) {
         $checker = My::Pod::Checker->new($filename);
-        $filename_to_checker{$filename} = $checker;
+        $filename_to_checker->{$filename} = $checker;
     }
 
     # We have set the name in the checker object if there is a possibility
@@ -1638,11 +1641,11 @@ foreach my $filename (@files) {
         # could be a link target.  Count how many there are of the same name.
         foreach my $node ($checker->linkable_nodes) {
             next FILE if ! $node;        # Can be empty is like '=item *'
-            if (exists $nodes{$name}{$node}) {
-                $nodes{$name}{$node}++;
+            if (exists $nodes->{$name}{$node}) {
+                $nodes->{$name}{$node}++;
             }
             else {
-                $nodes{$name}{$node} = 1;
+                $nodes->{$name}{$node} = 1;
             }
 
             # Experiments have shown that cpan search can figure out the
@@ -1652,114 +1655,38 @@ foreach my $filename (@files) {
             # entry also includes parameters to the function.
             my $first_word = $node;
             if ($first_word =~ s/^(\S+)\s+\S.*/$1/) {
-                $nodes_first_word{$name}{$first_word} = $node;
+                $nodes_first_word->{$name}{$first_word} = $node;
             }
         }
-        $filename_to_pod{$filename} = $name;
+        $filename_to_pod->{$filename} = $name;
     }
 }
 
-# Here, all files have been parsed, and all links and link targets are stored.
-# Now go through the files again and see which don't have matches.
-# $has_input_files
-# @files : used but not assigned to
-# %filename_to_checker : used but not assigned to
-# %nodes : used but not assigned to
-# %nodes_first_word : used and assigned to
-# %valid_modules : used but not assigned to
-# %filename_to_pod : used but not assigned to
-# # 3 following are only used within this block
-# $broken_link
-# $broken_internal_link
-# $multiple_targets
-my $broken_link = "Apparent broken link";
-my $broken_internal_link = "Apparent internal link is missing its forward slash";
-my $multiple_targets = "There is more than one target";
 if (! $has_input_files) {
-    foreach my $filename (@files) {
-        next if $filename_to_checker{$filename}->get_skip;
-        my $checker = $filename_to_checker{$filename};
-        foreach my $link ($checker->hyperlink) {
-            my $linked_to_page = $link->[1]->page;
-            next unless $linked_to_page;   # intra-file checks are handled by std
-                                           # Pod::Checker
-
-            # Initialize the potential message.
-            my %problem = ( -msg => $broken_link,
-                            -line => $link->[0],
-                            parameter => "to \"$linked_to_page\"",
-                        );
-
-            # See if we have found the linked-to_file in our parse
-            if (exists $nodes{$linked_to_page}) {
-                my $node = $link->[1]->node;
-
-                # If link is only to the page-level, already have it
-                next if ! $node;
-
-                # Transform pod language to what we are expecting
-                $node =~ s,E<sol>,/,g;
-                $node =~ s/E<verbar>/|/g;
-
-                # If link is to a node that exists in the file, is ok
-                if ($nodes{$linked_to_page}{$node}) {
-
-                    # But if the page has multiple targets with the same name,
-                    # it's ambiguous which one this should be to.
-                    if ($nodes{$linked_to_page}{$node} > 1) {
-                        $problem{-msg} = $multiple_targets;
-                        $problem{parameter} = "in $linked_to_page that $node could be pointing to";
-                        $checker->poderror(\%problem);
-                    }
-                } elsif (! $nodes_first_word{$linked_to_page}{$node}) {
-
-                    # Here the link target was not found, either exactly or to
-                    # the first word.  Is an error.
-                    $problem{parameter} =~ s,"$,/$node",;
-                    $checker->poderror(\%problem);
-                }
-
-            } # Linked-to-file not in parse; maybe is in exception list
-            elsif (! exists $valid_modules{$link->[1]->page}) {
-
-                # Here, is a link to a target that we can't find.  Check if
-                # there is an internal link on the page with the target name.
-                # If so, it could be that they just forgot the initial '/'
-                # But perldelta is handled specially: only do this if the
-                # broken link isn't one of the known bad ones (that are
-                # placemarkers and should be removed for the final)
-                my $NAME = $filename_to_pod{$filename};
-                if (! defined $NAME) {
-                    $checker->poderror(\%problem);
-                }
-                else {
-                    if ($nodes{$NAME}{$linked_to_page}) {
-                        $problem{-msg} =  $broken_internal_link;
-                    }
-                    $checker->poderror(\%problem);
-                }
-            }
-        }
-    }
+    # Here, all files have been parsed, and all links and link targets are stored.
+    # Now go through the files again and see which don't have matches.
+    # $nodes_first_word : used AND assigned to
+    # All others : used but not assigned to
+    $nodes_first_word = check_all_files(
+        \@files, $filename_to_checker, $nodes, $nodes_first_word, $valid_modules, $filename_to_pod);
 }
-# XXX
-# In above block, we have %problem.  What is the relationship of this to
-# %problems declared above and used below?
 
 # If regenerating the data file, start with the modules for which we don't
 # check targets.  If you change the sort order, you need to run --regen before
 # committing so that future commits that do run regen don't show irrelevant
 # changes.
-regen_sort_valid($regen, \%valid_modules, $copy_fh);
+regen_sort_valid($regen, $valid_modules, $copy_fh);
 
 # Now ready to output the messages.
 my $known_problems = \%known_problems;
 my $files_with_fixes = {};
 my $files_with_unknown_issues = {};
 foreach my $filename (@files) {
-    ($known_problems, $files_with_fixes, $files_with_unknown_issues) = analyze_one_file($filename, \%filename_to_checker, $regen, \%problems,
+    ($known_problems, $files_with_fixes, $files_with_unknown_issues) = analyze_one_file(
+        $filename, $filename_to_checker, $regen, \%problems,
         $known_problems, $copy_fh, $pedantic, $line_length, $C_not_linked, $C_with_slash,
-        $vms_re, \%special_vms_files, $files_with_fixes, $files_with_unknown_issues);
+        $vms_re, \%special_vms_files, $files_with_fixes, $files_with_unknown_issues
+    );
 }
 
 non_regen_known_problems_notice($regen, $known_problems);

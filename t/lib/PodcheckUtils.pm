@@ -16,6 +16,7 @@ our @EXPORT_OK = qw(
     ok
     skip
     note
+    check_all_files
 );
 use File::Spec;
 use strict;
@@ -70,6 +71,81 @@ sub test_count_discrepancy {
         print STDERR
         "# Looks like you planned $planned tests but ran $current_test.\n";
     }
+}
+
+#    $nodes_first_word = check_all_files(
+#        \@files, \%filename_to_checker, \%nodes, \%nodes_first_word, \%valid_modules, \%filename_to_pod);
+sub check_all_files {
+    my ($files, $filename_to_checker, $nodes, $nodes_first_word, $valid_modules, $filename_to_pod);
+    my $broken_link = "Apparent broken link";
+    my $broken_internal_link = "Apparent internal link is missing its forward slash";
+    my $multiple_targets = "There is more than one target";
+    foreach my $filename (@{$files}) {
+        next if $filename_to_checker->{$filename}->get_skip;
+        my $checker = $filename_to_checker->{$filename};
+        foreach my $link ($checker->hyperlink) {
+            my $linked_to_page = $link->[1]->page;
+            next unless $linked_to_page;   # intra-file checks are handled by std
+                                           # Pod::Checker
+
+            # Initialize the potential message.
+            my %problem = ( -msg => $broken_link,
+                            -line => $link->[0],
+                            parameter => "to \"$linked_to_page\"",
+                        );
+
+            # See if we have found the linked-to_file in our parse
+            if (exists $nodes->{$linked_to_page}) {
+                my $node = $link->[1]->node;
+
+                # If link is only to the page-level, already have it
+                next if ! $node;
+
+                # Transform pod language to what we are expecting
+                $node =~ s,E<sol>,/,g;
+                $node =~ s/E<verbar>/|/g;
+
+                # If link is to a node that exists in the file, is ok
+                if ($nodes->{$linked_to_page}{$node}) {
+
+                    # But if the page has multiple targets with the same name,
+                    # it's ambiguous which one this should be to.
+                    if ($nodes->{$linked_to_page}{$node} > 1) {
+                        $problem{-msg} = $multiple_targets;
+                        $problem{parameter} = "in $linked_to_page that $node could be pointing to";
+                        $checker->poderror(\%problem);
+                    }
+                } elsif (! $nodes_first_word->{$linked_to_page}{$node}) {
+
+                    # Here the link target was not found, either exactly or to
+                    # the first word.  Is an error.
+                    $problem{parameter} =~ s,"$,/$node",;
+                    $checker->poderror(\%problem);
+                }
+
+            } # Linked-to-file not in parse; maybe is in exception list
+            elsif (! exists $valid_modules->{$link->[1]->page}) {
+
+                # Here, is a link to a target that we can't find.  Check if
+                # there is an internal link on the page with the target name.
+                # If so, it could be that they just forgot the initial '/'
+                # But perldelta is handled specially: only do this if the
+                # broken link isn't one of the known bad ones (that are
+                # placemarkers and should be removed for the final)
+                my $NAME = $filename_to_pod->{$filename};
+                if (! defined $NAME) {
+                    $checker->poderror(\%problem);
+                }
+                else {
+                    if ($nodes->{$NAME}{$linked_to_page}) {
+                        $problem{-msg} =  $broken_internal_link;
+                    }
+                    $checker->poderror(\%problem);
+                }
+            }
+        }
+    }
+    return $nodes_first_word;
 }
 
 sub output_thanks {
