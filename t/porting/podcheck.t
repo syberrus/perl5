@@ -346,10 +346,8 @@ my $INDENT = 7;             # default nroff indent
 
 # Our warning messages.  Better not have [('"] in them, as those are used as
 # delimiters for variable parts of the messages by poderror.
-my $duplicate_name = "Pod NAME already used";
 my $need_encoding = "Should have =encoding statement because have non-ASCII";
 my $encoding_first = "=encoding must be first command (if present)";
-my $no_name = "There is no NAME";
 my $missing_name_description = "The NAME should have a dash and short description after it";
 # the pedantic warnings messages
 my $line_length = "Verbatim line length including indents exceeds $MAX_LINE_LENGTH by";
@@ -605,8 +603,8 @@ elsif ($has_input_files) {
 }
 
 our %problems;  # potential problems found in this run
-
-package My::Pod::Checker {      # Extend Pod::Checker
+# 607-1092
+package My::Pod::Checker {
     use parent 'Pod::Checker';
 
     # Uses inside out hash to protect from typos
@@ -759,10 +757,10 @@ package My::Pod::Checker {      # Extend Pod::Checker
 
         Carp::carp("Couldn't extract line number from '$message'") if $message =~ /line \d+/;
         push @{$problems{$filename{$addr}}{$message}}, $opts;
-        #push @{$problems{$self->get_filename}{$message}}, $opts;
     }
 
-    sub check_encoding {    # Does it need an =encoding statement?
+    # Does it need an =encoding statement?
+    sub check_encoding {
         my ($self, $paragraph, $line_num, $pod_para) = @_;
 
         # Do nothing if there is an =encoding in the file, or if the line
@@ -1454,6 +1452,25 @@ plan (tests => scalar @files) if ! $regen;
             @files;
 
 # Now go through all the files and parse them
+# 1475-1680
+# @files
+# $filename_to_checker
+# My::Pod::Checker
+# digest_type
+# extract_pod()
+# %id_to_checker
+# %digests
+# $do_upstream_cpan
+# $duplicate_name only used within loop FILE
+# $only_for_interior_links_re 
+# $do_deltas
+# %has_referred_to_node;
+
+# $duplicate_name only used within loop FILE
+# $no_name only used within loop FILE
+my $duplicate_name = "Pod NAME already used";
+my $no_name = "There is no NAME";
+
 FILE:
 foreach my $filename (@files) {
     my $parsed = 0;
@@ -1661,6 +1678,10 @@ foreach my $filename (@files) {
         $filename_to_pod->{$filename} = $name;
     }
 }
+# Outputs
+# $nodes_first_word assigned to
+# $filename_to_pod assigned to
+# $nodes assigned to
 
 if (! $has_input_files) {
     # Here, all files have been parsed, and all links and link targets are stored.
