@@ -18,9 +18,12 @@ our @EXPORT_OK = qw(
     note
 );
 use File::Spec;
+use strict;
 
 our $current_test = 0;
 our $planned;
+our $first_time = 1;
+
 sub plan {
     my %plan = @_;
     $planned = $plan{tests} + 1;    # +1 for final test that files haven't
@@ -69,49 +72,48 @@ sub test_count_discrepancy {
     }
 }
 
-{ # Closure
-    my $first_time = 1;
+sub output_thanks {
+    # References our $first_time
+    # Called when an issue has been fixed
+    my $filename = shift;
+    my $original_count = shift;
+    my $current_count = shift;
+    my $message = shift;
+    my $files_with_fixes = shift;
 
-    sub output_thanks ($$$$) {  # Called when an issue has been fixed
-        my $filename = shift;
-        my $original_count = shift;
-        my $current_count = shift;
-        my $message = shift;
-
-        $files_with_fixes{$filename} = 1;
-        my $return;
-        my $fixed_count = $original_count - $current_count;
-        my $a_problem = ($fixed_count == 1) ? "a problem" : "multiple problems";
-        my $another_problem = ($fixed_count == 1) ? "another problem" : "another set of problems";
-        my $diff;
-        if ($message) {
-            $diff = <<EOF;
+    $files_with_fixes->{$filename} = 1;
+    my $return;
+    my $fixed_count = $original_count - $current_count;
+    my $a_problem = ($fixed_count == 1) ? "a problem" : "multiple problems";
+    my $another_problem = ($fixed_count == 1) ? "another problem" : "another set of problems";
+    my $diff;
+    if ($message) {
+        $diff = <<EOF;
 There were $original_count occurrences (now $current_count) in this pod of type
 "$message",
 EOF
-        } else {
-            $diff = <<EOF;
+    } else {
+        $diff = <<EOF;
 There are no longer any problems found in this pod!
 EOF
-        }
+    }
 
-        if ($first_time) {
-            $first_time = 0;
-            $return = <<EOF;
+    if ($first_time) {
+        $first_time = 0;
+        $return = <<EOF;
 Thanks for fixing $a_problem!
 $diff
 Now you must teach $0 that this was fixed.
 EOF
-        }
-        else {
-            $return = <<EOF
+    }
+    else {
+        $return = <<EOF
 Thanks for fixing $another_problem.
 $diff
 EOF
-        }
-
-        return $return;
     }
+
+    return ($return, $files_with_fixes);
 }
 
 sub regen_sort_valid {
@@ -125,11 +127,14 @@ sub regen_sort_valid {
 
 sub analyze_one_file {
     my ($filename, $filename_to_checker, $regen, $problems,
-        $known_problems, $copy_fh, $pedantic, $line_length, $C_not_linked, $C_with_slash) = @_;
+        $known_problems, $copy_fh, $pedantic, $line_length,
+        $C_not_linked, $C_with_slash, $vms_re, $special_vms_files, $files_with_fixes,
+        $files_with_unknown_issues
+    ) = @_;
 
     my $these_problems = {};
     $these_problems = $problems->{$filename};
-    my $canonical = canonicalize($filename);
+    my $canonical = canonicalize($filename, $vms_re, $special_vms_files);
     SKIP: {
         my $skip = $filename_to_checker->{$filename}->get_skip // "";
 
@@ -183,9 +188,12 @@ sub analyze_one_file {
                     $diagnostic .= " $problem->{comment}" if $problem->{comment};
                 }
                 $diagnostic .= "\n";
-                $files_with_unknown_issues{$filename} = 1;
+                $files_with_unknown_issues->{$filename} = 1;
             } elsif ($problem_count < $known_problems->{$canonical}{$message}) {
-               $diagnostic = output_thanks($filename, $known_problems->{$canonical}{$message}, $problem_count, $message);
+               ($diagnostic, $files_with_fixes) = output_thanks(
+                   $filename, $known_problems->{$canonical}{$message}, $problem_count,
+                   $message, $files_with_fixes
+               );
                $thankful_diagnostics++;
             }
             push @diagnostics, $diagnostic if $diagnostic;
@@ -202,7 +210,10 @@ sub analyze_one_file {
             next if !$pedantic and $message =~ 
                 /^(?:\Q$line_length\E|\Q$C_not_linked\E|\Q$C_with_slash\E)/;
 
-            my $diagnostic = output_thanks($filename, $known_problems->{$canonical}{$message}, 0, $message);
+            my $diagnostic;
+            ($diagnostic, $files_with_fixes) = output_thanks(
+                $filename, $known_problems->{$canonical}{$message}, 0, $message, $files_with_fixes
+            );
             push @diagnostics, $diagnostic if $diagnostic;
             $thankful_diagnostics++ if $diagnostic;
         }
@@ -223,7 +234,7 @@ sub analyze_one_file {
 
         delete $known_problems->{$canonical};
     }
-    return $known_problems;
+    return ($known_problems, $files_with_fixes, $files_with_unknown_issues);
 }
 
 sub non_regen_known_problems_notice {
@@ -281,7 +292,7 @@ $how_to
    That should cause all current potential problems to be accepted by
    the program, so that the next time it runs, they won't be flagged.
 EOF
-        if (%files_with_fixes) {
+        if (%{$files_with_fixes}) {
             $message .= "   This step will also take care of the files that have fixes in them\n";
         }
 
@@ -325,8 +336,9 @@ sub my_safer_print {    # print, with error checking for outputting to db
 # This is to get this to work across multiple file systems, including those
 # that are not case sensitive.  The db is stored in lower case, Un*x style,
 # and all file name comparisons are done that way.
-sub canonicalize($) {
+sub canonicalize {
     my $input = shift;
+    my ($vms_re, $special_vms_files) = @_;
     my ($volume, $directories, $file)
                     = File::Spec->splitpath(File::Spec->canonpath($input));
     # Assumes $volume is constant for everything in this directory structure
@@ -342,7 +354,7 @@ sub canonicalize($) {
     # populated with these files.
     if ($^O eq 'VMS'
         && $file =~ / ( $vms_re ) $ /x
-        && ! exists $special_vms_files{$file})
+        && ! exists $special_vms_files->{$file})
     {
         $file =~ s/ $1 $ //x;
     }

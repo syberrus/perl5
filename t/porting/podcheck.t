@@ -366,22 +366,22 @@ my $dl_ext  = $Config{'dlext'};   $dl_ext  =~ tr/.//d;
 
 # Not really pods, but can look like them.
 my %excluded_files = (
-    PodcheckUtils::canonicalize("lib/unicore/mktables") => 1,
-    PodcheckUtils::canonicalize("Porting/make-rmg-checklist") => 1,
+    PodcheckUtils::canonicalize("lib/unicore/mktables", $vms_re, \%special_vms_files) => 1,
+    PodcheckUtils::canonicalize("Porting/make-rmg-checklist", $vms_re, \%special_vms_files) => 1,
     # this one is a POD, but unfinished, so skip
     # it for now
-    PodcheckUtils::canonicalize("Porting/perl5200delta.pod") => 1,
-    PodcheckUtils::canonicalize("Porting/perldelta_template.pod") => 1,
-    PodcheckUtils::canonicalize("regen/feature.pl") => 1,
-    PodcheckUtils::canonicalize("regen/warnings.pl") => 1,
-    PodcheckUtils::canonicalize("autodoc.pl") => 1,
-    PodcheckUtils::canonicalize("configpm") => 1,
-    PodcheckUtils::canonicalize("miniperl") => 1,
-    PodcheckUtils::canonicalize("perl") => 1,
-    PodcheckUtils::canonicalize('cpan/Pod-Perldoc/corpus/no-head.pod') => 1,
-    PodcheckUtils::canonicalize('cpan/Pod-Perldoc/corpus/perlfunc.pod') => 1,
-    PodcheckUtils::canonicalize('cpan/Pod-Perldoc/corpus/utf8.pod') => 1,
-    PodcheckUtils::canonicalize("lib/unicore/mktables") => 1,
+    PodcheckUtils::canonicalize("Porting/perl5200delta.pod", $vms_re, \%special_vms_files) => 1,
+    PodcheckUtils::canonicalize("Porting/perldelta_template.pod", $vms_re, \%special_vms_files) => 1,
+    PodcheckUtils::canonicalize("regen/feature.pl", $vms_re, \%special_vms_files) => 1,
+    PodcheckUtils::canonicalize("regen/warnings.pl", $vms_re, \%special_vms_files) => 1,
+    PodcheckUtils::canonicalize("autodoc.pl", $vms_re, \%special_vms_files) => 1,
+    PodcheckUtils::canonicalize("configpm", $vms_re, \%special_vms_files) => 1,
+    PodcheckUtils::canonicalize("miniperl", $vms_re, \%special_vms_files) => 1,
+    PodcheckUtils::canonicalize("perl", $vms_re, \%special_vms_files) => 1,
+    PodcheckUtils::canonicalize('cpan/Pod-Perldoc/corpus/no-head.pod', $vms_re, \%special_vms_files) => 1,
+    PodcheckUtils::canonicalize('cpan/Pod-Perldoc/corpus/perlfunc.pod', $vms_re, \%special_vms_files) => 1,
+    PodcheckUtils::canonicalize('cpan/Pod-Perldoc/corpus/utf8.pod', $vms_re, \%special_vms_files) => 1,
+    PodcheckUtils::canonicalize("lib/unicore/mktables", $vms_re, \%special_vms_files) => 1,
                     );
 
 # This list should not include anything for which case sensitivity is
@@ -439,7 +439,7 @@ while (<$manifest_fh>) {
         $special_vms_files{$1} = 1;
     }
     if (/ ^ ( [^\t]* \. PL ) \t /x) {
-        $excluded_files{PodcheckUtils::canonicalize($1)} = 1;
+        $excluded_files{PodcheckUtils::canonicalize($1, $vms_re, \%special_vms_files)} = 1;
     }
 }
 close $manifest_fh, or die "Can't close $MANIFEST";
@@ -1121,8 +1121,6 @@ my %nodes_first_word;   # same, but value is first word of each node
 my %valid_modules;      # List of modules known to exist outside us.
 my %digests;            # checksums of files, whose names are the keys
 my %filename_to_pod;    # Map a filename to its pod NAME
-my %files_with_unknown_issues;
-my %files_with_fixes;
 
 my $data_fh;
 open $data_fh, '<:bytes', $known_issues or die "Can't open $known_issues";
@@ -1228,61 +1226,6 @@ unless ($do_deltas) {
                                 /x;
 }
 
-#{ # Closure
-#    my $first_time = 1;
-#
-#    sub output_thanks ($$$$) {  # Called when an issue has been fixed
-#        my $filename = shift;
-#        my $original_count = shift;
-#        my $current_count = shift;
-#        my $message = shift;
-#
-#        $files_with_fixes{$filename} = 1;
-#        my $return;
-#        my $fixed_count = $original_count - $current_count;
-#        my $a_problem = ($fixed_count == 1) ? "a problem" : "multiple problems";
-#        my $another_problem = ($fixed_count == 1) ? "another problem" : "another set of problems";
-#        my $diff;
-#        if ($message) {
-#            $diff = <<EOF;
-#There were $original_count occurrences (now $current_count) in this pod of type
-#"$message",
-#EOF
-#        } else {
-#            $diff = <<EOF;
-#There are no longer any problems found in this pod!
-#EOF
-#        }
-#
-#        if ($first_time) {
-#            $first_time = 0;
-#            $return = <<EOF;
-#Thanks for fixing $a_problem!
-#$diff
-#Now you must teach $0 that this was fixed.
-#EOF
-#        }
-#        else {
-#            $return = <<EOF
-#Thanks for fixing $another_problem.
-#$diff
-#EOF
-#        }
-#
-#        return $return;
-#    }
-#}
-
-#sub my_safer_print {    # print, with error checking for outputting to db
-#    my ($fh, @lines) = @_;
-#
-#    if (! print $fh @lines) {
-#        my $save_error = $!;
-#        close($fh);
-#        die "Write failure: $save_error";
-#    }
-#}
-
 sub extract_pod {   # Extracts just the pod from a file; returns undef if file
                     # doesn't exist
     my $filename = shift;
@@ -1340,7 +1283,7 @@ sub is_pod_file {
     # $filename is relative, like './path'.  Strip that initial part away.
     $filename =~ s!^\./!! or die 'Unexpected pathname "$filename"';
 
-    return if $excluded_files{PodcheckUtils::canonicalize($filename)};
+    return if $excluded_files{PodcheckUtils::canonicalize($filename, $vms_re, \%special_vms_files)};
 
     my $contents = do {
         local $/;
@@ -1811,15 +1754,18 @@ regen_sort_valid($regen, \%valid_modules, $copy_fh);
 
 # Now ready to output the messages.
 my $known_problems = \%known_problems;
+my $files_with_fixes = {};
+my $files_with_unknown_issues = {};
 foreach my $filename (@files) {
-    $known_problems = analyze_one_file($filename, \%filename_to_checker, $regen, \%problems,
-        $known_problems, $copy_fh, $pedantic, $line_length, $C_not_linked, $C_with_slash);
+    ($known_problems, $files_with_fixes, $files_with_unknown_issues) = analyze_one_file($filename, \%filename_to_checker, $regen, \%problems,
+        $known_problems, $copy_fh, $pedantic, $line_length, $C_not_linked, $C_with_slash,
+        $vms_re, \%special_vms_files, $files_with_fixes, $files_with_unknown_issues);
 }
 
 non_regen_known_problems_notice($regen, $known_problems);
 
 final_notification(
-    \%files_with_unknown_issues, \%files_with_fixes, $known_issues);
+    $files_with_unknown_issues, $files_with_fixes, $known_issues);
 
 regen_cleanup($regen, $original_dir, $copy_fh);
 
