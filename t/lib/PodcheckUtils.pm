@@ -58,6 +58,7 @@ our @EXPORT_OK = qw(
     ok
     skip
     note
+    suppressed
     check_all_files
 );
 
@@ -111,6 +112,24 @@ sub test_count_discrepancy {
         print STDERR
         "# Looks like you planned $planned tests but ran $current_test.\n";
     }
+}
+
+sub suppressed {
+    # Returns bool as to if input message is one that is to be suppressed
+    my $message = shift;
+
+    # Pod::Checker messages to suppress
+    my @suppressed_messages = (
+        "(section) in",                         # Checker is wrong to flag this
+        "multiple occurrence of link target",   # We catch independently the ones
+                                                # that are real problems.
+        "unescaped <>",
+        "Entity number out of range",   # Checker outputs this for anything above
+                                        # 255, but in fact all Unicode is valid
+        "No items in =over",            # ie a blockquote
+    );
+
+    return grep { $message =~ /^\Q$_/i } @suppressed_messages;
 }
 
 #    $nodes_first_word = check_all_files(

@@ -15,6 +15,7 @@ use PodcheckUtils qw(
     ok
     skip
     note
+    suppressed
     check_all_files
 );
 #use PodcheckUtils::Canonicalize;
@@ -435,7 +436,7 @@ while (<$manifest_fh>) {
     # While we have MANIFEST open, on VMS platforms, look for files that match
     # the magic VMS file names that have to be handled specially.  Add these
     # to the list of them.
-    if ($^O eq 'VMS' && / ^ ( [^\t]* $vms_re ) \t /x) {
+    if ($^O eq 'VMS' && / ^ ( [^\t]* $vms_re ) \t /x) {   #/
         $special_vms_files{$1} = 1;
     }
     if (/ ^ ( [^\t]* \. PL ) \t /x) {
@@ -443,81 +444,6 @@ while (<$manifest_fh>) {
     }
 }
 close $manifest_fh, or die "Can't close $MANIFEST";
-
-
-# Pod::Checker messages to suppress
-my @suppressed_messages = (
-    "(section) in",                         # Checker is wrong to flag this
-    "multiple occurrence of link target",   # We catch independently the ones
-                                            # that are real problems.
-    "unescaped <>",
-    "Entity number out of range",   # Checker outputs this for anything above
-                                    # 255, but in fact all Unicode is valid
-    "No items in =over",            # ie a blockquote
-);
-
-sub suppressed {
-    # Returns bool as to if input message is one that is to be suppressed
-
-    my $message = shift;
-    return grep { $message =~ /^\Q$_/i } @suppressed_messages;
-}
-
-#{   # Closure to contain a simple subset of test.pl.  This is to get rid of the
-#    # unnecessary 'failed at' messages that would otherwise be output pointing
-#    # to a particular line in this file.
-#
-#    my $current_test = 0;
-#    my $planned;
-#
-#    sub plan {
-#        my %plan = @_;
-#        $planned = $plan{tests} + 1;    # +1 for final test that files haven't
-#                                        # been removed
-#        print "1..$planned\n";
-#        return;
-#    }
-#
-#    sub ok {
-#        my $success = shift;
-#        my $message = shift;
-#
-#        chomp $message;
-#
-#        $current_test++;
-#        print "not " unless $success;
-#        print "ok $current_test - $message\n";
-#        return $success;
-#    }
-#
-#    sub skip {
-#        my $why = shift;
-#        my $n    = @_ ? shift : 1;
-#        for (1..$n) {
-#            $current_test++;
-#            print "ok $current_test # skip $why\n";
-#        }
-#        no warnings 'exiting';
-#        last SKIP;
-#    }
-#
-#    sub note {
-#        my $message = shift;
-#
-#        chomp $message;
-#
-#        print $message =~ s/^/# /mgr;
-#        print "\n";
-#        return;
-#    }
-#
-#    END {
-#        if ($planned && $planned != $current_test) {
-#            print STDERR
-#            "# Looks like you planned $planned tests but ran $current_test.\n";
-#        }
-#    }
-#}
 
 # List of known potential problems by pod and type.
 my %known_problems;
@@ -604,7 +530,7 @@ elsif ($has_input_files) {
 }
 
 our %problems;  # potential problems found in this run
-# 607-1092
+# 534-1019
 package My::Pod::Checker {
     use parent 'Pod::Checker';
 
