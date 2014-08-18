@@ -1,7 +1,50 @@
+package PodcheckUtils::Canonicalize;
+use strict;
+use File::Spec ();
+
+sub new {
+    my ($class, $vms_re, $special_vms_files) = @_;
+    # Assumes $volume is constant for everything in this directory structure
+    my %data = (
+        vms_re              => $vms_re,
+        special_vms_files   => $special_vms_files,
+    );
+    return bless \%data, $class;
+}
+
+# This is to get this to work across multiple file systems, including those
+# that are not case sensitive.  The db is stored in lower case, Un*x style,
+# and all file name comparisons are done that way.
+sub canonicalize {
+    my ($self, $input) = @_;
+
+    my ($volume, $directories, $file)
+        = File::Spec->splitpath(File::Spec->canonpath($input));
+    $directories = "" if ! $directories;
+    $file = "" if ! $file;
+    $file = lc join '/', File::Spec->splitdir($directories), $file;
+    $file =~ s! / /+ !/!gx;       # Multiple slashes => single slash
+    # The db is stored without the special suffixes that are there in VMS, so
+    # strip them off to get the comparable name.  But some files on all
+    # platforms have these suffixes, so this shouldn't happen for them, as any
+    # of their db entries will have the suffixes in them.  The hash has been
+    # populated with these files.
+    if ($^O eq 'VMS'
+        && $file =~ / ( $self->{vms_re} ) $ /x
+        && ! exists $self->{special_vms_files}->{$file})
+    {
+        $file =~ s/ $1 $ //x;
+    }
+    return $file;
+}
+
+1;
+
 package PodcheckUtils;
 BEGIN {
     require './regen/regen_lib.pl';
 }
+use strict;
 use base qw( Exporter );
 our @EXPORT_OK = qw(
     regen_sort_valid
@@ -10,7 +53,6 @@ our @EXPORT_OK = qw(
     final_notification
     regen_cleanup
     my_safer_print
-    canonicalize
     test_count_discrepancy
     plan
     ok
@@ -18,8 +60,6 @@ our @EXPORT_OK = qw(
     note
     check_all_files
 );
-use File::Spec;
-use strict;
 
 our $current_test = 0;
 our $planned;
@@ -205,12 +245,12 @@ sub analyze_one_file {
     my ($filename, $filename_to_checker, $regen, $problems,
         $known_problems, $copy_fh, $pedantic, $line_length,
         $C_not_linked, $C_with_slash, $vms_re, $special_vms_files, $files_with_fixes,
-        $files_with_unknown_issues
+        $files_with_unknown_issues, $canon
     ) = @_;
 
     my $these_problems = {};
     $these_problems = $problems->{$filename};
-    my $canonical = canonicalize($filename, $vms_re, $special_vms_files);
+    my $canonical = $canon->canonicalize($filename, $vms_re, $special_vms_files);
     SKIP: {
         my $skip = $filename_to_checker->{$filename}->get_skip // "";
 
@@ -409,32 +449,5 @@ sub my_safer_print {    # print, with error checking for outputting to db
     }
 }
 
-# This is to get this to work across multiple file systems, including those
-# that are not case sensitive.  The db is stored in lower case, Un*x style,
-# and all file name comparisons are done that way.
-sub canonicalize {
-    my $input = shift;
-    my ($vms_re, $special_vms_files) = @_;
-    my ($volume, $directories, $file)
-                    = File::Spec->splitpath(File::Spec->canonpath($input));
-    # Assumes $volume is constant for everything in this directory structure
-    $directories = "" if ! $directories;
-    $file = "" if ! $file;
-    $file = lc join '/', File::Spec->splitdir($directories), $file;
-    $file =~ s! / /+ !/!gx;       # Multiple slashes => single slash
-
-    # The db is stored without the special suffixes that are there in VMS, so
-    # strip them off to get the comparable name.  But some files on all
-    # platforms have these suffixes, so this shouldn't happen for them, as any
-    # of their db entries will have the suffixes in them.  The hash has been
-    # populated with these files.
-    if ($^O eq 'VMS'
-        && $file =~ / ( $vms_re ) $ /x
-        && ! exists $special_vms_files->{$file})
-    {
-        $file =~ s/ $1 $ //x;
-    }
-    return $file;
-}
 
 1;

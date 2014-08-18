@@ -10,7 +10,6 @@ use PodcheckUtils qw(
     final_notification
     regen_cleanup
     my_safer_print
-    canonicalize
     test_count_discrepancy
     plan
     ok
@@ -18,6 +17,7 @@ use PodcheckUtils qw(
     note
     check_all_files
 );
+#use PodcheckUtils::Canonicalize;
 BEGIN {
     chdir 't';
     unshift @INC, "../t/lib", "../lib";
@@ -296,6 +296,7 @@ my $vms_re = qr/ \. (?: com )? /x;
 # Some filenames in the MANIFEST match $vms_re, and so must not be handled the
 # same way that that the special vms ones are.  This hash lists those.
 my %special_vms_files;
+my $canon = PodcheckUtils::Canonicalize->new($vms_re, \%special_vms_files);
 
 #####################################################
 # HOW IT WORKS (in general)
@@ -365,22 +366,22 @@ my $dl_ext  = $Config{'dlext'};   $dl_ext  =~ tr/.//d;
 
 # Not really pods, but can look like them.
 my %excluded_files = (
-    PodcheckUtils::canonicalize("lib/unicore/mktables", $vms_re, \%special_vms_files) => 1,
-    PodcheckUtils::canonicalize("Porting/make-rmg-checklist", $vms_re, \%special_vms_files) => 1,
+    $canon->canonicalize("lib/unicore/mktables") => 1,
+    $canon->canonicalize("Porting/make-rmg-checklist") => 1,
     # this one is a POD, but unfinished, so skip
     # it for now
-    PodcheckUtils::canonicalize("Porting/perl5200delta.pod", $vms_re, \%special_vms_files) => 1,
-    PodcheckUtils::canonicalize("Porting/perldelta_template.pod", $vms_re, \%special_vms_files) => 1,
-    PodcheckUtils::canonicalize("regen/feature.pl", $vms_re, \%special_vms_files) => 1,
-    PodcheckUtils::canonicalize("regen/warnings.pl", $vms_re, \%special_vms_files) => 1,
-    PodcheckUtils::canonicalize("autodoc.pl", $vms_re, \%special_vms_files) => 1,
-    PodcheckUtils::canonicalize("configpm", $vms_re, \%special_vms_files) => 1,
-    PodcheckUtils::canonicalize("miniperl", $vms_re, \%special_vms_files) => 1,
-    PodcheckUtils::canonicalize("perl", $vms_re, \%special_vms_files) => 1,
-    PodcheckUtils::canonicalize('cpan/Pod-Perldoc/corpus/no-head.pod', $vms_re, \%special_vms_files) => 1,
-    PodcheckUtils::canonicalize('cpan/Pod-Perldoc/corpus/perlfunc.pod', $vms_re, \%special_vms_files) => 1,
-    PodcheckUtils::canonicalize('cpan/Pod-Perldoc/corpus/utf8.pod', $vms_re, \%special_vms_files) => 1,
-    PodcheckUtils::canonicalize("lib/unicore/mktables", $vms_re, \%special_vms_files) => 1,
+    $canon->canonicalize("Porting/perl5200delta.pod") => 1,
+    $canon->canonicalize("Porting/perldelta_template.pod") => 1,
+    $canon->canonicalize("regen/feature.pl") => 1,
+    $canon->canonicalize("regen/warnings.pl") => 1,
+    $canon->canonicalize("autodoc.pl") => 1,
+    $canon->canonicalize("configpm") => 1,
+    $canon->canonicalize("miniperl") => 1,
+    $canon->canonicalize("perl") => 1,
+    $canon->canonicalize('cpan/Pod-Perldoc/corpus/no-head.pod') => 1,
+    $canon->canonicalize('cpan/Pod-Perldoc/corpus/perlfunc.pod') => 1,
+    $canon->canonicalize('cpan/Pod-Perldoc/corpus/utf8.pod') => 1,
+    $canon->canonicalize("lib/unicore/mktables") => 1,
                     );
 
 # This list should not include anything for which case sensitivity is
@@ -438,7 +439,7 @@ while (<$manifest_fh>) {
         $special_vms_files{$1} = 1;
     }
     if (/ ^ ( [^\t]* \. PL ) \t /x) {
-        $excluded_files{PodcheckUtils::canonicalize($1, $vms_re, \%special_vms_files)} = 1;
+        $excluded_files{$canon->canonicalize($1)} = 1;
     }
 }
 close $manifest_fh, or die "Can't close $MANIFEST";
@@ -1284,7 +1285,7 @@ sub is_pod_file {
     # $filename is relative, like './path'.  Strip that initial part away.
     $filename =~ s!^\./!! or die 'Unexpected pathname "$filename"';
 
-    return if $excluded_files{PodcheckUtils::canonicalize($filename, $vms_re, \%special_vms_files)};
+    return if $excluded_files{$canon->canonicalize($filename)};
 
     my $contents = do {
         local $/;
@@ -1705,7 +1706,8 @@ foreach my $filename (@files) {
     ($known_problems, $files_with_fixes, $files_with_unknown_issues) = analyze_one_file(
         $filename, $filename_to_checker, $regen, \%problems,
         $known_problems, $copy_fh, $pedantic, $line_length, $C_not_linked, $C_with_slash,
-        $vms_re, \%special_vms_files, $files_with_fixes, $files_with_unknown_issues
+        $vms_re, \%special_vms_files, $files_with_fixes, $files_with_unknown_issues,
+        $canon
     );
 }
 
