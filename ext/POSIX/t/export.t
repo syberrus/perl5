@@ -10,6 +10,13 @@ plan(skip_all => "POSIX is unavailable")
 require POSIX;
 POSIX->import();
 
+require($ENV{PERL_CORE} ? "../../t/charset_tools.pl" : "../t/charset_tools.pl");
+
+sub ascii_order {   # Sort helper
+    return native_to_latin1($a) cmp native_to_latin1($b);
+}
+    
+
 # @POSIX::EXPORT and @POSIX::EXPORT_OK are generated. The intent of this test is
 # to catch *unintended* changes to them introduced by bugs in refactoring.
 
@@ -139,5 +146,5 @@ while (my ($var, $expect) = each %expect) {
     my $have = *{$POSIX::{$var}}{ARRAY};
     cmp_ok(@$have, '==', @$expect,
 	   "Correct number of entries for \@POSIX::$var");
-    is_deeply([sort @$have], $expect, "Correct entries for \@POSIX::$var");
+    is_deeply([sort ascii_order @$have], $expect, "Correct entries for \@POSIX::$var");
 }
