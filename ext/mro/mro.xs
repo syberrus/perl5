@@ -4,6 +4,17 @@
 #include "perl.h"
 #include "XSUB.h"
 
+#ifdef EBCDIC
+
+static AV*
+S_dummy()
+{
+	AV* retval = 0;
+	return retval;
+}
+
+#else
+
 static AV*
 S_mro_get_linear_isa_c3(pTHX_ HV* stash, U32 level);
 
@@ -304,7 +315,11 @@ __dopoptosub_at(const PERL_CONTEXT *cxstk, I32 startingblock) {
     return i;
 }
 
+#endif
+
 MODULE = mro		PACKAGE = mro		PREFIX = mro_
+
+#ifndef EBCDIC
 
 void
 mro_get_linear_isa(...)
@@ -677,5 +692,16 @@ mro__nextcan(...)
                         HEKfARG( HvNAME_HEK(selfstash) ));
     XSRETURN_EMPTY;
 
+#endif
+
+#ifndef EBCDIC
+
 BOOT:
     Perl_mro_register(aTHX_ &c3_alg);
+
+#else
+
+BOOT:
+    printf("We are in dummy bootstrap!\n");
+
+#endif
