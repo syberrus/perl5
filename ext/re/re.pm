@@ -4,7 +4,7 @@ package re;
 use strict;
 use warnings;
 
-our $VERSION     = "0.27";
+our $VERSION     = "0.28";
 our @ISA         = qw(Exporter);
 our @EXPORT_OK   = ('regmust',
                     qw(is_regexp regexp_pattern
@@ -24,6 +24,7 @@ my %reflags = (
     i => 1 << ($PMMOD_SHIFT + 2),
     x => 1 << ($PMMOD_SHIFT + 3),
     p => 1 << ($PMMOD_SHIFT + 5),
+    n => 1 << ($PMMOD_SHIFT + 6),
 # special cases:
     d => 0,
     l => 1,
