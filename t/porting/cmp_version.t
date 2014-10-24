@@ -17,6 +17,8 @@ use TestInit qw(T A); # T is chdir to the top level, A makes paths absolute
 use strict;
 
 require 't/test.pl';
+skip_all("XXX temporary for smoke-me");
+
 my $source = find_git_or_skip('all');
 chdir $source or die "Can't chdir to $source: $!";
 
