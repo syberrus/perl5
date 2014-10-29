@@ -103,7 +103,7 @@ do_encode(const encpage_t * enc, const U8 * src, STRLEN * slen, U8 * dst,
     int code = 0;
     while (s < send) {
     const encpage_t *e = enc;
-    U8 byte = *s;
+    U8 byte = NATIVE_TO_LATIN1(*s);
     while (byte > e->max)
         e++;
     if (byte >= e->min && e->slen && (approx || !(e->slen & 0x80))) {
