@@ -1675,7 +1675,6 @@ cpan/podlators/lib/Pod/Man.pm			Convert POD data to *roff
 cpan/podlators/lib/Pod/ParseLink.pm		Perl an L<> formatting code in POD text
 cpan/podlators/lib/Pod/Text/Color.pm		Convert POD data to color ASCII text
 cpan/podlators/lib/Pod/Text/Overstrike.pm	Convert POD data to formatted overstrike text
-cpan/podlators/lib/Pod/Text.pm			Pod-Parser - convert POD data to formatted ASCII text
 cpan/podlators/lib/Pod/Text/Termcap.pm		Convert POD data to ASCII text with format escapes
 cpan/podlators/scripts/pod2man.PL	Precursor for translator to turn pod into manpage
 cpan/podlators/scripts/pod2text.PL	Precursor for translator to turn pod into text
@@ -1708,57 +1707,6 @@ cpan/podlators/t/text-perlio.t			podlators test
 cpan/podlators/t/text.t				podlators test
 cpan/podlators/t/text-utf8.t			podlators test
 cpan/podlators/VERSION				podlators distribution version
-cpan/Pod-Parser/lib/Pod/Find.pm			find POD documents in directory trees
-cpan/Pod-Parser/lib/Pod/InputObjects.pm		Pod-Parser - define objects for input streams
-cpan/Pod-Parser/lib/Pod/Parser.pm		Pod-Parser - define base class for parsing POD
-cpan/Pod-Parser/lib/Pod/ParseUtils.pm		Pod-Parser - pod utility functions
-cpan/Pod-Parser/lib/Pod/PlainText.pm		Convert POD data to formatted ASCII text
-cpan/Pod-Parser/lib/Pod/Select.pm		Pod-Parser - select portions of POD docs
-cpan/Pod-Parser/scripts/podselect.PL	Pod-Parser - Pod::Select::podselect() CLI
-cpan/Pod-Parser/t/pod/contains_bad_pod.xr	Pod-Parser test file
-cpan/Pod-Parser/t/pod/contains_pod.t		Pod-Parser test
-cpan/Pod-Parser/t/pod/contains_pod.xr		Pod-Parser test file
-cpan/Pod-Parser/t/pod/emptycmd.t		Test empty pod directives
-cpan/Pod-Parser/t/pod/emptycmd.xr		Expected results for emptycmd.t
-cpan/Pod-Parser/t/pod/empty.xr
-cpan/Pod-Parser/t/pod/find.t			See if Pod::Find works
-cpan/Pod-Parser/t/pod/for.t			Test =for directive
-cpan/Pod-Parser/t/pod/for.xr			Expected results for for.t
-cpan/Pod-Parser/t/pod/headings.t		Test =head directives
-cpan/Pod-Parser/t/pod/headings.xr		Expected results for headings.t
-cpan/Pod-Parser/t/pod/included.t		Test =include directive
-cpan/Pod-Parser/t/pod/included.xr		Expected results for included.t
-cpan/Pod-Parser/t/pod/include.t			Test =include directive
-cpan/Pod-Parser/t/pod/include.xr		Expected results for include.t
-cpan/Pod-Parser/t/pod/lref.t			Test L<...> sequences
-cpan/Pod-Parser/t/pod/lref.xr			Expected results for lref.t
-cpan/Pod-Parser/t/pod/multiline_items.t		Test multiline =items
-cpan/Pod-Parser/t/pod/multiline_items.xr	Expected results for multiline_items.t
-cpan/Pod-Parser/t/pod/nested_items.t		Test nested =items
-cpan/Pod-Parser/t/pod/nested_items.xr		Expected results for nested_items.t
-cpan/Pod-Parser/t/pod/nested_seqs.t		Test nested interior sequences
-cpan/Pod-Parser/t/pod/nested_seqs.xr		Expected results for nested_seqs.t
-cpan/Pod-Parser/t/pod/oneline_cmds.t		Test single paragraph ==cmds
-cpan/Pod-Parser/t/pod/oneline_cmds.xr		Expected results for oneline_cmds.t
-cpan/Pod-Parser/t/pod/p2u_data.pl		Test Pod::Usage
-cpan/Pod-Parser/t/pod/pod2usage2.t		Test Pod::Usage
-cpan/Pod-Parser/t/pod/pod2usage.t		Test Pod::Usage
-cpan/Pod-Parser/t/pod/pod2usage.xr		Expected results for pod2usage.t
-cpan/Pod-Parser/t/pod/podchkenc.t		Validate =encoding support
-cpan/Pod-Parser/t/pod/podchkenc.xr		Expected results for the above
-cpan/Pod-Parser/t/pod/podchkinter.t		Test Pod::Checker's interface	
-cpan/Pod-Parser/t/pod/poderrs.t			Test POD errors
-cpan/Pod-Parser/t/pod/poderrs.xr		Expected results for poderrs.t
-cpan/Pod-Parser/t/pod/podselect.t		Test Pod::Select
-cpan/Pod-Parser/t/pod/podselect.xr		Expected results for podselect.t
-cpan/Pod-Parser/t/pod/selfcheck.t
-cpan/Pod-Parser/t/pod/special_seqs.t		Test "special" interior sequences
-cpan/Pod-Parser/t/pod/special_seqs.xr		Expected results for special_seqs.t
-cpan/Pod-Parser/t/pod/testcmp.pl		Module to compare output against expected results
-cpan/Pod-Parser/t/pod/testp2pt.pl		Module to test Pod::PlainText for a given file
-cpan/Pod-Parser/t/pod/testpchk.pl		Module to test Pod::Checker for a given file
-cpan/Pod-Parser/t/pod/testpods/lib/Pod/Stuff.pm	Sample data for t/pod/find.t
-cpan/Pod-Parser/t/pod/twice.t			Test Pod::Parser
 cpan/Pod-Perldoc/corpus/no-head.pod		test file for Pod-Perldoc
 cpan/Pod-Perldoc/corpus/perlfunc.pod		test file for Pod-Perldoc
 cpan/Pod-Perldoc/corpus/utf8.pod		test file for Pod-Perldoc

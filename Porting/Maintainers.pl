@@ -913,11 +913,6 @@ use File::Glob qw(:case);
         'FILES'        => q[cpan/Pod-Escapes],
     },
 
-    'Pod::Parser' => {
-        'DISTRIBUTION' => 'MAREKR/Pod-Parser-1.62.tar.gz',
-        'FILES'        => q[cpan/Pod-Parser],
-    },
-
     'Pod::Perldoc' => {
         'DISTRIBUTION' => 'MALLEN/Pod-Perldoc-3.24.tar.gz',
         'FILES'        => q[cpan/Pod-Perldoc],
