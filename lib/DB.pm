@@ -244,8 +244,12 @@ sub backtrace {
     for (@a) {
       s/'/\\'/g;
       s/([^\0]*)/'$1'/ unless /^-?[\d.]+$/;
-      s/([\200-\377])/sprintf("M-%c",ord($1)&0177)/eg;
-      s/([\0-\37\177])/sprintf("^%c",ord($1)^64)/eg;
+      s/(\0-\037)/sprintf("^%c",utf8::unicode_to_native(utf8::native_to_unicode(ord($1))^64))/eg;
+      my $question_mark_control = (ord("A") == 65)
+                                  ? '\\?'
+                                  : utf8::unicode_to_native(0x9F);
+      s/$question_mark_control/^?/g;
+      s/([\N{U+80}-\N{U+FF}])/sprintf("M-%c",utf8::unicode_to_native(utf8::native_to_unicode(ord($1))&0177))/eg;
     }
     $w = $w ? '@ = ' : '$ = ';
     $a = $h ? '(' . join(', ', @a) . ')' : '';
