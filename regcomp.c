@@ -5662,14 +5662,6 @@ PerlIO_printf(Perl_debug_log, "LHS=%"UVuf" RHS=%"UVuf"\n",
 	/* Else: zero-length, ignore. */
 	params->scan = regnext(params->scan);
     }
-    /* If we are exiting a recursion we can unset its recursed bit
-     * and allow ourselves to enter it again - no danger of an
-     * infinite loop there.
-    if (params->stopparen > -1 && recursed) {
-	DEBUG_STUDYDATA("unset:", params->data, params->depth, params->is_inf);
-        PAREN_UNSET( recursed, params->stopparen);
-    }
-    */
 }
 
 STATIC U32
