@@ -7229,10 +7229,10 @@ STATIC SSize_t	S_study_chunk(pTHX_ RExC_state_t *pRExC_state, regnode **scanp, S
 #define PERL_ARGS_ASSERT_STUDY_CHUNK	\
 	assert(pRExC_state); assert(scanp); assert(minlenp); assert(deltap); assert(last)
 
-STATIC void	S_study_chunk_one_frame(pTHX_ RExC_state_t *pRExC_state, rck_params_t *params)
+STATIC bool	S_study_chunk_one_node(pTHX_ RExC_state_t *pRExC_state, rck_params_t *params)
 			__attribute__nonnull__(pTHX_1)
 			__attribute__nonnull__(pTHX_2);
-#define PERL_ARGS_ASSERT_STUDY_CHUNK_ONE_FRAME	\
+#define PERL_ARGS_ASSERT_STUDY_CHUNK_ONE_NODE	\
 	assert(pRExC_state); assert(params)
 
 #endif
