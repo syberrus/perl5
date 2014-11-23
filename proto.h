@@ -7037,6 +7037,12 @@ STATIC bool	S_rck_branch(pTHX_ RExC_state_t *pRExC_state, rck_params_t *params)
 #define PERL_ARGS_ASSERT_RCK_BRANCH	\
 	assert(pRExC_state); assert(params)
 
+STATIC bool	S_rck_branchj(pTHX_ RExC_state_t *pRExC_state, rck_params_t *params)
+			__attribute__nonnull__(pTHX_1)
+			__attribute__nonnull__(pTHX_2);
+#define PERL_ARGS_ASSERT_RCK_BRANCHJ	\
+	assert(pRExC_state); assert(params)
+
 STATIC bool	S_rck_definep(pTHX_ RExC_state_t *pRExC_state, rck_params_t *params)
 			__attribute__nonnull__(pTHX_1)
 			__attribute__nonnull__(pTHX_2);
@@ -7047,6 +7053,18 @@ STATIC void	S_rck_elide_nothing(pTHX_ regnode *node)
 			__attribute__nonnull__(pTHX_1);
 #define PERL_ARGS_ASSERT_RCK_ELIDE_NOTHING	\
 	assert(node)
+
+STATIC bool	S_rck_ifthen(pTHX_ RExC_state_t *pRExC_state, rck_params_t *params)
+			__attribute__nonnull__(pTHX_1)
+			__attribute__nonnull__(pTHX_2);
+#define PERL_ARGS_ASSERT_RCK_IFTHEN	\
+	assert(pRExC_state); assert(params)
+
+STATIC void	S_rck_make_trie(pTHX_ RExC_state_t *pRExC_state, rck_params_t *params)
+			__attribute__nonnull__(pTHX_1)
+			__attribute__nonnull__(pTHX_2);
+#define PERL_ARGS_ASSERT_RCK_MAKE_TRIE	\
+	assert(pRExC_state); assert(params)
 
 PERL_STATIC_NO_RET void	S_re_croak2(pTHX_ bool utf8, const char* pat1, const char* pat2, ...)
 			__attribute__noreturn__
