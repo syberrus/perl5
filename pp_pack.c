@@ -338,9 +338,10 @@ STATIC bool
 next_uni_uu(pTHX_ const char **s, const char *end, I32 *out)
 {
     STRLEN retlen;
-    const UV val = utf8n_to_uvchr((U8 *) *s, end-*s, &retlen, UTF8_CHECK_ONLY);
-    if (val >= 0x100 || !ISUUCHAR(val) ||
-	retlen == (STRLEN) -1 || retlen == 0) {
+    const UV val = NATIVE_TO_UNI(utf8n_to_uvchr((U8 *) *s, end-*s, &retlen, UTF8_CHECK_ONLY));
+    if (val >= 0x100 || !ISUUCHAR(val)
+        || retlen == (STRLEN) -1 || retlen == 0)
+    {
 	*out = 0;
 	return FALSE;
     }
@@ -1322,6 +1323,7 @@ S_unpack_rec(pTHX_ tempsym_t* symptr, const char *s, const char *strbeg, const c
                                                        len,
                                                        &retlen,
                                                        UTF8_ALLOW_DEFAULT));
+                    /* XXX why no error check, unlike the conversion just below? */
 		    s = ptr;
 		} else {
 		    auv = NATIVE_TO_UNI(utf8n_to_uvchr((U8*)s,
