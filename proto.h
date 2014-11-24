@@ -7054,6 +7054,26 @@ STATIC void	S_rck_elide_nothing(pTHX_ regnode *node)
 #define PERL_ARGS_ASSERT_RCK_ELIDE_NOTHING	\
 	assert(node)
 
+STATIC void	S_rck_enframe(pTHX_ RExC_state_t *pRExC_state, rck_params_t *params, regnode *start, regnode *end, I32 paren, U32 recursed_depth)
+			__attribute__nonnull__(pTHX_1)
+			__attribute__nonnull__(pTHX_2)
+			__attribute__nonnull__(pTHX_3)
+			__attribute__nonnull__(pTHX_4);
+#define PERL_ARGS_ASSERT_RCK_ENFRAME	\
+	assert(pRExC_state); assert(params); assert(start); assert(end)
+
+STATIC bool	S_rck_gostart(pTHX_ RExC_state_t *pRExC_state, rck_params_t *params)
+			__attribute__nonnull__(pTHX_1)
+			__attribute__nonnull__(pTHX_2);
+#define PERL_ARGS_ASSERT_RCK_GOSTART	\
+	assert(pRExC_state); assert(params)
+
+STATIC bool	S_rck_gosub(pTHX_ RExC_state_t *pRExC_state, rck_params_t *params)
+			__attribute__nonnull__(pTHX_1)
+			__attribute__nonnull__(pTHX_2);
+#define PERL_ARGS_ASSERT_RCK_GOSUB	\
+	assert(pRExC_state); assert(params)
+
 STATIC bool	S_rck_ifthen(pTHX_ RExC_state_t *pRExC_state, rck_params_t *params)
 			__attribute__nonnull__(pTHX_1)
 			__attribute__nonnull__(pTHX_2);
@@ -7064,6 +7084,12 @@ STATIC void	S_rck_make_trie(pTHX_ RExC_state_t *pRExC_state, rck_params_t *param
 			__attribute__nonnull__(pTHX_1)
 			__attribute__nonnull__(pTHX_2);
 #define PERL_ARGS_ASSERT_RCK_MAKE_TRIE	\
+	assert(pRExC_state); assert(params)
+
+STATIC bool	S_rck_suspend(pTHX_ RExC_state_t *pRExC_state, rck_params_t *params)
+			__attribute__nonnull__(pTHX_1)
+			__attribute__nonnull__(pTHX_2);
+#define PERL_ARGS_ASSERT_RCK_SUSPEND	\
 	assert(pRExC_state); assert(params)
 
 PERL_STATIC_NO_RET void	S_re_croak2(pTHX_ bool utf8, const char* pat1, const char* pat2, ...)
