@@ -7062,6 +7062,12 @@ STATIC void	S_rck_enframe(pTHX_ RExC_state_t *pRExC_state, rck_params_t *params,
 #define PERL_ARGS_ASSERT_RCK_ENFRAME	\
 	assert(pRExC_state); assert(params); assert(start); assert(end)
 
+STATIC bool	S_rck_exact(pTHX_ RExC_state_t *pRExC_state, rck_params_t *params)
+			__attribute__nonnull__(pTHX_1)
+			__attribute__nonnull__(pTHX_2);
+#define PERL_ARGS_ASSERT_RCK_EXACT	\
+	assert(pRExC_state); assert(params)
+
 STATIC bool	S_rck_gostart(pTHX_ RExC_state_t *pRExC_state, rck_params_t *params)
 			__attribute__nonnull__(pTHX_1)
 			__attribute__nonnull__(pTHX_2);
