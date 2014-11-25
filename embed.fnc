@@ -2219,6 +2219,8 @@ Es	|bool	|rck_gostart	|NN RExC_state_t *pRExC_state \
 				|NN rck_params_t *params
 Es	|bool	|rck_exact	|NN RExC_state_t *pRExC_state \
 				|NN rck_params_t *params
+Es	|bool	|rck_exactfish	|NN RExC_state_t *pRExC_state \
+				|NN rck_params_t *params
 Es	|void	|rck_make_trie	|NN RExC_state_t *pRExC_state \
 				|NN rck_params_t *params
 Es	|void	|rck_enframe	|NN RExC_state_t *pRExC_state \

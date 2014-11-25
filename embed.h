@@ -986,6 +986,7 @@
 #define rck_elide_nothing(a)	S_rck_elide_nothing(aTHX_ a)
 #define rck_enframe(a,b,c,d,e,f)	S_rck_enframe(aTHX_ a,b,c,d,e,f)
 #define rck_exact(a,b)		S_rck_exact(aTHX_ a,b)
+#define rck_exactfish(a,b)	S_rck_exactfish(aTHX_ a,b)
 #define rck_gostart(a,b)	S_rck_gostart(aTHX_ a,b)
 #define rck_gosub(a,b)		S_rck_gosub(aTHX_ a,b)
 #define rck_ifthen(a,b)		S_rck_ifthen(aTHX_ a,b)
