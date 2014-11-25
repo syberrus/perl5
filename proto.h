@@ -7043,11 +7043,30 @@ STATIC bool	S_rck_branchj(pTHX_ RExC_state_t *pRExC_state, rck_params_t *params)
 #define PERL_ARGS_ASSERT_RCK_BRANCHJ	\
 	assert(pRExC_state); assert(params)
 
+STATIC bool	S_rck_clump(pTHX_ RExC_state_t *pRExC_state, rck_params_t *params)
+			__attribute__nonnull__(pTHX_1)
+			__attribute__nonnull__(pTHX_2);
+#define PERL_ARGS_ASSERT_RCK_CLUMP	\
+	assert(pRExC_state); assert(params)
+
+STATIC bool	S_rck_curlyish(pTHX_ RExC_state_t *pRExC_state, rck_params_t *params)
+			__attribute__nonnull__(pTHX_1)
+			__attribute__nonnull__(pTHX_2);
+#define PERL_ARGS_ASSERT_RCK_CURLYISH	\
+	assert(pRExC_state); assert(params)
+
 STATIC bool	S_rck_definep(pTHX_ RExC_state_t *pRExC_state, rck_params_t *params)
 			__attribute__nonnull__(pTHX_1)
 			__attribute__nonnull__(pTHX_2);
 #define PERL_ARGS_ASSERT_RCK_DEFINEP	\
 	assert(pRExC_state); assert(params)
+
+STATIC void	S_rck_do_curly(pTHX_ RExC_state_t *pRExC_state, rck_params_t *params, regnode *node, SSize_t mincount, SSize_t maxcount, I32 next_is_eval)
+			__attribute__nonnull__(pTHX_1)
+			__attribute__nonnull__(pTHX_2)
+			__attribute__nonnull__(pTHX_3);
+#define PERL_ARGS_ASSERT_RCK_DO_CURLY	\
+	assert(pRExC_state); assert(params); assert(node)
 
 STATIC void	S_rck_elide_nothing(pTHX_ regnode *node)
 			__attribute__nonnull__(pTHX_1);
@@ -7098,10 +7117,34 @@ STATIC void	S_rck_make_trie(pTHX_ RExC_state_t *pRExC_state, rck_params_t *param
 #define PERL_ARGS_ASSERT_RCK_MAKE_TRIE	\
 	assert(pRExC_state); assert(params)
 
+STATIC bool	S_rck_plus(pTHX_ RExC_state_t *pRExC_state, rck_params_t *params)
+			__attribute__nonnull__(pTHX_1)
+			__attribute__nonnull__(pTHX_2);
+#define PERL_ARGS_ASSERT_RCK_PLUS	\
+	assert(pRExC_state); assert(params)
+
+STATIC bool	S_rck_refish(pTHX_ RExC_state_t *pRExC_state, rck_params_t *params)
+			__attribute__nonnull__(pTHX_1)
+			__attribute__nonnull__(pTHX_2);
+#define PERL_ARGS_ASSERT_RCK_REFISH	\
+	assert(pRExC_state); assert(params)
+
+STATIC bool	S_rck_star(pTHX_ RExC_state_t *pRExC_state, rck_params_t *params)
+			__attribute__nonnull__(pTHX_1)
+			__attribute__nonnull__(pTHX_2);
+#define PERL_ARGS_ASSERT_RCK_STAR	\
+	assert(pRExC_state); assert(params)
+
 STATIC bool	S_rck_suspend(pTHX_ RExC_state_t *pRExC_state, rck_params_t *params)
 			__attribute__nonnull__(pTHX_1)
 			__attribute__nonnull__(pTHX_2);
 #define PERL_ARGS_ASSERT_RCK_SUSPEND	\
+	assert(pRExC_state); assert(params)
+
+STATIC bool	S_rck_whilem(pTHX_ RExC_state_t *pRExC_state, rck_params_t *params)
+			__attribute__nonnull__(pTHX_1)
+			__attribute__nonnull__(pTHX_2);
+#define PERL_ARGS_ASSERT_RCK_WHILEM	\
 	assert(pRExC_state); assert(params)
 
 PERL_STATIC_NO_RET void	S_re_croak2(pTHX_ bool utf8, const char* pat1, const char* pat2, ...)

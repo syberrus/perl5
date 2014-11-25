@@ -4338,6 +4338,148 @@ STATIC bool S_rck_exactfish(pTHX_ RExC_state_t *pRExC_state, rck_params_t *param
     return 0;
 }
 
+STATIC bool S_rck_whilem(pTHX_ RExC_state_t *pRExC_state, rck_params_t *params)
+{
+    PERL_UNUSED_VAR(pRExC_state);
+
+    PERL_ARGS_ASSERT_RCK_WHILEM;
+
+    params->scan = NEXTOPER(params->scan);
+    assert(!params->frame);
+    return 1;
+}
+
+STATIC bool S_rck_refish(pTHX_ RExC_state_t *pRExC_state, rck_params_t *params)
+{
+    PERL_ARGS_ASSERT_RCK_REFISH;
+
+    /* REF REFF REFFL REFFU REFFA NREF NREFF NREFFL NREFFU NREFFA */
+    if (params->flags & SCF_DO_SUBSTR) {
+        /* Cannot expect anything... */
+        scan_commit(pRExC_state, params->data, params->minlenp, params->is_inf);
+        params->data->longest = &(params->data->longest_float);
+    }
+    params->is_inf = params->is_inf_internal = 1;
+    if (params->flags & SCF_DO_STCLASS_OR)
+        ssc_anything(params->data->start_class);
+    params->flags &= ~SCF_DO_STCLASS;
+    params->scan = regnext(params->scan);
+    return 0;
+}
+
+STATIC bool S_rck_clump(pTHX_ RExC_state_t *pRExC_state, rck_params_t *params)
+{
+    PERL_ARGS_ASSERT_RCK_CLUMP;
+
+    if (params->flags & SCF_DO_SUBSTR) {
+        /* Cannot expect anything... */
+        scan_commit(pRExC_state, params->data, params->minlenp, params->is_inf);
+        params->data->longest = &(params->data->longest_float);
+    }
+    params->is_inf = params->is_inf_internal = 1;
+    if (params->flags & SCF_DO_STCLASS_OR) {
+        /* Actually is any start char, but very few code points
+         * aren't start characters */
+        ssc_match_all_cp(params->data->start_class);
+    }
+    params->flags &= ~SCF_DO_STCLASS;
+    params->scan = regnext(params->scan);
+    return 0;
+}
+
+STATIC bool S_rck_star(pTHX_ RExC_state_t *pRExC_state, rck_params_t *params)
+{
+    regnode * const node = params->scan;
+
+    PERL_ARGS_ASSERT_RCK_STAR;
+
+    if (params->flags & SCF_DO_STCLASS) {
+        params->next = regnext(params->scan);
+        params->scan = NEXTOPER(params->scan);
+        rck_do_curly(pRExC_state, params, node, 0, REG_INFTY, 0);
+    } else {
+        if (params->flags & SCF_DO_SUBSTR) {
+            scan_commit(pRExC_state, params->data, params->minlenp, params->is_inf);
+            /* Cannot extend fixed substrings */
+            params->data->longest = &(params->data->longest_float);
+        }
+        params->is_inf = params->is_inf_internal = 1;
+        params->scan = regnext(params->scan);
+    }
+    rck_elide_nothing(node);
+    return 0;
+}
+
+STATIC bool S_rck_plus(pTHX_ RExC_state_t *pRExC_state, rck_params_t *params)
+{
+    regnode * const node = params->scan;
+
+    PERL_ARGS_ASSERT_RCK_PLUS;
+
+    if (params->flags & SCF_DO_STCLASS) {
+        SSize_t mincount;
+        if (params->flags & SCF_DO_SUBSTR) {
+            params->next = NEXTOPER(params->scan);
+            mincount = 1;
+        } else {
+            params->min++;
+            mincount = 0;
+        }
+        params->next = regnext(params->scan);
+        params->scan = NEXTOPER(params->scan);
+        rck_do_curly(pRExC_state, params, node, mincount, REG_INFTY, 0);
+    } else if (params->flags & SCF_DO_SUBSTR) {
+        params->next = NEXTOPER(params->scan);
+        if (OP(params->next) == EXACT) {
+            params->next = regnext(params->scan);
+            params->scan = NEXTOPER(params->scan);
+            rck_do_curly(pRExC_state, params, node, 1, REG_INFTY, 0);
+        } else {
+            params->data->pos_min++;
+            params->min++;
+            scan_commit(pRExC_state, params->data, params->minlenp, params->is_inf);
+            /* Cannot extend fixed substrings */
+            params->data->longest = &(params->data->longest_float);
+            params->is_inf = params->is_inf_internal = 1;
+            params->scan = regnext(params->scan);
+        }
+    } else {
+        params->min++;
+        params->is_inf = params->is_inf_internal = 1;
+        params->scan = regnext(params->scan);
+    }
+    rck_elide_nothing(node);
+    return 0;
+}
+
+STATIC bool S_rck_curlyish(pTHX_ RExC_state_t *pRExC_state, rck_params_t *params)
+{
+    regnode * const node = params->scan;
+    SSize_t mincount, maxcount;
+
+    PERL_ARGS_ASSERT_RCK_CURLYISH;
+
+    if (params->stopparen > 0
+        && (OP(params->scan) == CURLYN || OP(params->scan) == CURLYM)
+        && (params->scan->flags == params->stopparen)
+    ) {
+        mincount = 1;
+        maxcount = 1;
+    } else {
+        mincount = ARG1(params->scan);
+        maxcount = ARG2(params->scan);
+    }
+    params->next = regnext(params->scan);
+    if (OP(params->scan) == CURLYX) {
+        I32 lp = (params->data ? *(params->data->last_closep) : 0);
+        params->scan->flags = ((lp <= (I32)U8_MAX) ? (U8)lp : U8_MAX);
+    }
+    params->scan = NEXTOPER(params->scan) + EXTRA_STEP_2ARGS;
+    rck_do_curly(pRExC_state, params, node, mincount, maxcount, (OP(params->scan) == EVAL));
+    rck_elide_nothing(node);
+    return 0;
+}
+
 STATIC void S_rck_enframe(pTHX_ RExC_state_t *pRExC_state, rck_params_t *params,
         regnode *start, regnode *end, I32 paren, U32 recursed_depth)
 {
@@ -4819,6 +4961,320 @@ STATIC void S_rck_make_trie(pTHX_ RExC_state_t *pRExC_state, rck_params_t *param
     } /* do trie */
 }
 
+STATIC void S_rck_do_curly(pTHX_ RExC_state_t *pRExC_state, rck_params_t *params,
+        regnode * const node, SSize_t mincount, SSize_t maxcount, I32 next_is_eval)
+{
+    SSize_t minnext, deltanext, pos_before = 0;
+    I32 fl = 0, f = params->flags;
+    regnode_ssc this_class;
+    regnode_ssc *oclass = NULL;
+    PERL_ARGS_ASSERT_RCK_DO_CURLY;
+
+    if (params->flags & SCF_DO_SUBSTR) {
+        if (mincount == 0)
+            scan_commit(pRExC_state, params->data, params->minlenp, params->is_inf);
+        /* Cannot extend fixed substrings */
+        pos_before = params->data->pos_min;
+    }
+    if (params->data) {
+        fl = params->data->flags;
+        params->data->flags &= ~(SF_HAS_PAR | SF_IN_PAR | SF_HAS_EVAL);
+        if (params->is_inf)
+            params->data->flags |= SF_IS_INF;
+    }
+    if (params->flags & SCF_DO_STCLASS) {
+        ssc_init(pRExC_state, &this_class);
+        oclass = params->data->start_class;
+        params->data->start_class = &this_class;
+        f |= SCF_DO_STCLASS_AND;
+        f &= ~SCF_DO_STCLASS_OR;
+    }
+    /* Exclude from super-linear cache processing any {n,m}
+       regops for which the combination of input pos and regex
+       pos is not enough information to determine if a match
+       will be possible.
+
+       For example, in the regex /foo(bar\s*){4,8}baz/ with the
+       regex pos at the \s*, the prospects for a match depend not
+       only on the input position but also on how many (bar\s*)
+       repeats into the {4,8} we are. */
+   if ((mincount > 1) || (maxcount > 1 && maxcount != REG_INFTY))
+        f &= ~SCF_WHILEM_VISITED_POS;
+
+    /* This will finish on WHILEM, setting scan, or on NULL: */
+    minnext = study_chunk(
+        pRExC_state, &params->scan, params->minlenp, &deltanext, params->last,
+        params->data, params->stopparen, params->recursed_depth, NULL,
+        (mincount == 0 ? (f & ~SCF_DO_SUBSTR) : f),
+        params->depth + 1
+    );
+
+    if (params->flags & SCF_DO_STCLASS)
+        params->data->start_class = oclass;
+    if (mincount == 0 || minnext == 0) {
+        if (params->flags & SCF_DO_STCLASS_OR) {
+            ssc_or(pRExC_state, params->data->start_class, (regnode_charclass *)&this_class);
+        } else if (params->flags & SCF_DO_STCLASS_AND) {
+            /* Switch to OR mode: cache the old value of data->start_class */
+            INIT_AND_WITHP;
+            StructCopy(params->data->start_class, params->and_withp, regnode_ssc);
+            params->flags &= ~SCF_DO_STCLASS_AND;
+            StructCopy(&this_class, params->data->start_class, regnode_ssc);
+            params->flags |= SCF_DO_STCLASS_OR;
+            ANYOF_FLAGS(params->data->start_class) |= SSC_MATCHES_EMPTY_STRING;
+        }
+    } else {		/* Non-zero len */
+        if (params->flags & SCF_DO_STCLASS_OR) {
+            ssc_or(pRExC_state, params->data->start_class, (regnode_charclass *)&this_class);
+            ssc_and(pRExC_state, params->data->start_class, (regnode_charclass *)params->and_withp);
+        } else if (params->flags & SCF_DO_STCLASS_AND) {
+            ssc_and(pRExC_state, params->data->start_class, (regnode_charclass *) &this_class);
+        }
+        params->flags &= ~SCF_DO_STCLASS;
+    }
+    if (!params->scan) 		/* It was not CURLYX, but CURLY. */
+        params->scan = params->next;
+    if (!(params->flags & SCF_TRIE_DOING_RESTUDY)
+        /* ? quantifier ok, except for (?{ ... }) */
+        && (next_is_eval || !(mincount == 0 && maxcount == 1))
+        && (minnext == 0) && (deltanext == 0)
+        && params->data && !(params->data->flags & (SF_HAS_PAR|SF_IN_PAR))
+        && maxcount <= REG_INFTY/3) /* Complement check for big count */
+    {
+        /* Fatal warnings may leak the regexp without this: */
+        SAVEFREESV(RExC_rx_sv);
+        Perl_ck_warner(aTHX_ packWARN(WARN_REGEXP),
+            "Quantifier unexpected on zero-length expression "
+            "in regex m/%"UTF8f"/",
+             UTF8fARG(UTF, RExC_end - RExC_precomp, RExC_precomp));
+        (void)ReREFCNT_inc(RExC_rx_sv);
+    }
+
+    params->min += minnext * mincount;
+    params->is_inf_internal |= deltanext == SSize_t_MAX
+             || (maxcount == REG_INFTY && minnext + deltanext > 0);
+    params->is_inf |= params->is_inf_internal;
+    if (params->is_inf) {
+        params->delta = SSize_t_MAX;
+    } else {
+        params->delta += (minnext + deltanext) * maxcount - minnext * mincount;
+    }
+    /* Try powerful optimization CURLYX => CURLYN. */
+    if (OP(node) == CURLYX && params->data
+          && params->data->flags & SF_IN_PAR
+          && !(params->data->flags & SF_HAS_EVAL)
+          && !deltanext && minnext == 1 ) {
+        /* Try to optimize to CURLYN.  */
+        regnode *nxt = NEXTOPER(node) + EXTRA_STEP_2ARGS;
+        regnode * const nxt1 = nxt;
+#ifdef DEBUGGING
+        regnode *nxt2;
+#endif
+
+        /* Skip open. */
+        nxt = regnext(nxt);
+        if (!REGNODE_SIMPLE(OP(nxt))
+            && !(PL_regkind[OP(nxt)] == EXACT
+                 && STR_LEN(nxt) == 1))
+            goto nogo;
+#ifdef DEBUGGING
+        nxt2 = nxt;
+#endif
+        nxt = regnext(nxt);
+        if (OP(nxt) != CLOSE)
+            goto nogo;
+        if (RExC_open_parens) {
+            RExC_open_parens[ARG(nxt1) - 1] = node; /*open->CURLYM*/
+            RExC_close_parens[ARG(nxt1) - 1] = nxt + 2; /*close->while*/
+        }
+        /* Now we know that nxt2 is the only contents: */
+        node->flags = (U8)ARG(nxt);
+        OP(node) = CURLYN;
+        OP(nxt1) = NOTHING;	/* was OPEN. */
+
+#ifdef DEBUGGING
+        OP(nxt1 + 1) = OPTIMIZED; /* was count. */
+        NEXT_OFF(nxt1 + 1) = 0; /* just for consistency. */
+        NEXT_OFF(nxt2) = 0;	/* just for consistency with CURLY. */
+        OP(nxt) = OPTIMIZED;	/* was CLOSE. */
+        OP(nxt + 1) = OPTIMIZED; /* was count. */
+        NEXT_OFF(nxt + 1) = 0; /* just for consistency. */
+#endif
+    }
+  nogo:
+
+    /* Try optimization CURLYX => CURLYM. */
+    if (OP(node) == CURLYX && params->data
+          && !(params->data->flags & SF_HAS_PAR)
+          && !(params->data->flags & SF_HAS_EVAL)
+          && !deltanext	/* atom is fixed width */
+          && minnext != 0	/* CURLYM can't handle zero width */
+
+             /* Nor characters whose fold at run-time may be
+              * multi-character */
+          && ! (RExC_seen & REG_UNFOLDED_MULTI_SEEN)
+    ) {
+        /* XXXX How to optimize if data == 0? */
+        /* Optimize to a simpler form.  */
+        regnode *nxt = NEXTOPER(node) + EXTRA_STEP_2ARGS; /* OPEN */
+        regnode *nxt2;
+
+        OP(node) = CURLYM;
+        while ((nxt2 = regnext(nxt)) /* skip over embedded stuff*/
+                && (OP(nxt2) != WHILEM))
+            nxt = nxt2;
+        OP(nxt2)  = SUCCEED; /* Whas WHILEM */
+        /* Need to optimize away parenths. */
+        if ((params->data->flags & SF_IN_PAR) && OP(nxt) == CLOSE) {
+            /* Set the parenth number.  */
+            regnode *nxt1 = NEXTOPER(node) + EXTRA_STEP_2ARGS; /* OPEN*/
+
+            node->flags = (U8)ARG(nxt);
+            if (RExC_open_parens) {
+                RExC_open_parens[ARG(nxt1) - 1] = node; /*open->CURLYM*/
+                RExC_close_parens[ARG(nxt1) - 1] = nxt2 + 1; /*close->NOTHING*/
+            }
+            OP(nxt1) = OPTIMIZED;	/* was OPEN. */
+            OP(nxt) = OPTIMIZED;	/* was CLOSE. */
+
+#ifdef DEBUGGING
+            OP(nxt1 + 1) = OPTIMIZED; /* was count. */
+            OP(nxt + 1) = OPTIMIZED; /* was count. */
+            NEXT_OFF(nxt1 + 1) = 0; /* just for consistency. */
+            NEXT_OFF(nxt + 1) = 0; /* just for consistency. */
+#endif
+#if 0
+            while (nxt1 && (OP(nxt1) != WHILEM)) {
+                regnode *nnxt = regnext(nxt1);
+                if (nnxt == nxt) {
+                    if (reg_off_by_arg[OP(nxt1)])
+                        ARG_SET(nxt1, nxt2 - nxt1);
+                    else if (nxt2 - nxt1 < U16_MAX)
+                        NEXT_OFF(nxt1) = nxt2 - nxt1;
+                    else
+                        OP(nxt) = NOTHING;	/* Cannot beautify */
+                }
+                nxt1 = nnxt;
+            }
+#endif
+            /* Optimize again: */
+            study_chunk(pRExC_state, &nxt1, params->minlenp, &deltanext, nxt,
+                        NULL, params->stopparen, params->recursed_depth, NULL, 0, params->depth + 1);
+        } else {
+            node->flags = 0;
+        }
+    } else if ((OP(node) == CURLYX)
+             && (params->flags & SCF_WHILEM_VISITED_POS)
+             /* See the comment on a similar expression above.
+                However, this time it's not a subexpression
+                we care about, but the expression itself. */
+             && (maxcount == REG_INFTY)
+             && params->data && ++params->data->whilem_c < 16) {
+        /* This stays as CURLYX, we can put the count/of pair. */
+        /* Find WHILEM (as in regexec.c) */
+        regnode *nxt = node + NEXT_OFF(node);
+
+        if (OP(PREVOPER(nxt)) == NOTHING) /* LONGJMP */
+            nxt += ARG(nxt);
+        PREVOPER(nxt)->flags = (U8)(params->data->whilem_c
+            | (RExC_whilem_seen << 4)); /* On WHILEM */
+    }
+    if (params->data && fl & (SF_HAS_PAR | SF_IN_PAR))
+        params->pars++;
+    if (params->flags & SCF_DO_SUBSTR) {
+        SV *last_str = NULL;
+        STRLEN last_chrs = 0;
+        int counted = mincount != 0;
+
+        if (params->data->last_end > 0 && mincount != 0) { /* Ends with a
+                                                      string. */
+            SSize_t b = pos_before >= params->data->last_start_min
+                ? pos_before : params->data->last_start_min;
+            STRLEN l;
+            const char * const s = SvPV_const(params->data->last_found, l);
+            SSize_t old = b - params->data->last_start_min;
+
+            if (UTF)
+                old = utf8_hop((U8*)s, old) - (U8*)s;
+            l -= old;
+            /* Get the added string: */
+            last_str = newSVpvn_utf8(s  + old, l, UTF);
+            last_chrs = UTF ? utf8_length((U8*)(s + old),
+                                (U8*)(s + old + l)) : l;
+            if (deltanext == 0 && pos_before == b) {
+                /* What was added is a constant string */
+                if (mincount > 1) {
+                    SvGROW(last_str, (mincount * l) + 1);
+                    repeatcpy(SvPVX(last_str) + l,
+                              SvPVX_const(last_str), l,
+                              mincount - 1);
+                    SvCUR_set(last_str, SvCUR(last_str) * mincount);
+                    /* Add additional parts. */
+                    SvCUR_set(params->data->last_found,
+                              SvCUR(params->data->last_found) - l);
+                    sv_catsv(params->data->last_found, last_str);
+                    {
+                        SV * sv = params->data->last_found;
+                        MAGIC *mg =
+                            SvUTF8(sv) && SvMAGICAL(sv) ?
+                            mg_find(sv, PERL_MAGIC_utf8) : NULL;
+                        if (mg && mg->mg_len >= 0)
+                            mg->mg_len += last_chrs * (mincount-1);
+                    }
+                    last_chrs *= mincount;
+                    params->data->last_end += l * (mincount - 1);
+                }
+            } else {
+                /* start offset must point into the last copy */
+                params->data->last_start_min += minnext * (mincount - 1);
+                params->data->last_start_max += params->is_inf ? SSize_t_MAX
+                    : (maxcount - 1) * (minnext + params->data->pos_delta);
+            }
+        }
+        /* It is counted once already... */
+        params->data->pos_min += minnext * (mincount - counted);
+#if 0
+PerlIO_printf(Perl_debug_log, "counted=%"UVuf" deltanext=%"UVuf
+                  " SSize_t_MAX=%"UVuf" minnext=%"UVuf
+                  " maxcount=%"UVuf" mincount=%"UVuf"\n",
+(UV)counted, (UV)deltanext, (UV)SSize_t_MAX, (UV)minnext, (UV)maxcount,
+(UV)mincount);
+if (deltanext != SSize_t_MAX)
+    PerlIO_printf(Perl_debug_log, "LHS=%"UVuf" RHS=%"UVuf"\n",
+            (UV)(-counted * deltanext + (minnext + deltanext) * maxcount
+            - minnext * mincount), (UV)(SSize_t_MAX - params->data->pos_delta));
+#endif
+        if (deltanext == SSize_t_MAX
+            || -counted * deltanext + (minnext + deltanext) * maxcount - minnext * mincount >= SSize_t_MAX - params->data->pos_delta)
+            params->data->pos_delta = SSize_t_MAX;
+        else
+            params->data->pos_delta += - counted * deltanext +
+                    (minnext + deltanext) * maxcount - minnext * mincount;
+        if (mincount != maxcount) {
+             /* Cannot extend fixed substrings found inside the group.  */
+            scan_commit(pRExC_state, params->data, params->minlenp, params->is_inf);
+            if (mincount && last_str) {
+                SV * const sv = params->data->last_found;
+                MAGIC * const mg = SvUTF8(sv) && SvMAGICAL(sv) ?
+                    mg_find(sv, PERL_MAGIC_utf8) : NULL;
+
+                if (mg)
+                    mg->mg_len = -1;
+                sv_setsv(sv, last_str);
+                params->data->last_end = params->data->pos_min;
+                params->data->last_start_min = params->data->pos_min - last_chrs;
+                params->data->last_start_max = params->is_inf
+                    ? SSize_t_MAX
+                    : params->data->pos_min + params->data->pos_delta - last_chrs;
+            }
+            params->data->longest = &(params->data->longest_float);
+        }
+        SvREFCNT_dec(last_str);
+    }
+    if (params->data && (fl & SF_HAS_EVAL))
+        params->data->flags |= SF_HAS_EVAL;
+}
+
 STATIC bool S_study_chunk_one_node(pTHX_ RExC_state_t *pRExC_state, rck_params_t *params)
 {
 #ifdef DEBUGGING
@@ -4857,416 +5313,21 @@ STATIC bool S_study_chunk_one_node(pTHX_ RExC_state_t *pRExC_state, rck_params_t
         /* But OP != EXACT!, so is EXACTFish - one of
          * EXACTF, EXACTFL, EXACTFU, EXACTFA, EXACTFU_SS EXACTFA_NO_TRIE */
         return rck_exactfish(pRExC_state, params);
-    } else if (REGNODE_VARIES(OP(params->scan))) {
-        SSize_t mincount, maxcount, minnext, deltanext, pos_before = 0;
-        I32 fl = 0, f = params->flags;
-        regnode * const oscan = params->scan;
-        regnode_ssc this_class;
-        regnode_ssc *oclass = NULL;
-        I32 next_is_eval = 0;
-
-        switch (PL_regkind[OP(params->scan)]) {
-        case WHILEM:		/* End of (?:...)* . */
-            params->scan = NEXTOPER(params->scan);
-            assert(!params->frame);
-            return 1;
-        case PLUS:
-            if (params->flags & (SCF_DO_SUBSTR | SCF_DO_STCLASS)) {
-                params->next = NEXTOPER(params->scan);
-                if (OP(params->next) == EXACT || (params->flags & SCF_DO_STCLASS)) {
-                    mincount = 1;
-                    maxcount = REG_INFTY;
-                    params->next = regnext(params->scan);
-                    params->scan = NEXTOPER(params->scan);
-                    goto do_curly;
-                }
-            }
-            if (params->flags & SCF_DO_SUBSTR)
-                params->data->pos_min++;
-            params->min++;
-            /* FALLTHROUGH */
-        case STAR:
-            if (params->flags & SCF_DO_STCLASS) {
-                mincount = 0;
-                maxcount = REG_INFTY;
-                params->next = regnext(params->scan);
-                params->scan = NEXTOPER(params->scan);
-                goto do_curly;
-            }
-            if (params->flags & SCF_DO_SUBSTR) {
-                scan_commit(pRExC_state, params->data, params->minlenp, params->is_inf);
-                /* Cannot extend fixed substrings */
-                params->data->longest = &(params->data->longest_float);
-            }
-            params->is_inf = params->is_inf_internal = 1;
-            params->scan = regnext(params->scan);
-            goto optimize_curly_tail;
-        case CURLY:
-            if (params->stopparen>0 && (OP(params->scan)==CURLYN || OP(params->scan)==CURLYM)
-                && (params->scan->flags == params->stopparen))
-            {
-                mincount = 1;
-                maxcount = 1;
-            } else {
-                mincount = ARG1(params->scan);
-                maxcount = ARG2(params->scan);
-            }
-            params->next = regnext(params->scan);
-            if (OP(params->scan) == CURLYX) {
-                I32 lp = (params->data ? *(params->data->last_closep) : 0);
-                params->scan->flags = ((lp <= (I32)U8_MAX) ? (U8)lp : U8_MAX);
-            }
-            params->scan = NEXTOPER(params->scan) + EXTRA_STEP_2ARGS;
-            next_is_eval = (OP(params->scan) == EVAL);
-          do_curly:
-            if (params->flags & SCF_DO_SUBSTR) {
-                if (mincount == 0)
-                    scan_commit(pRExC_state, params->data, params->minlenp, params->is_inf);
-                /* Cannot extend fixed substrings */
-                pos_before = params->data->pos_min;
-            }
-            if (params->data) {
-                fl = params->data->flags;
-                params->data->flags &= ~(SF_HAS_PAR|SF_IN_PAR|SF_HAS_EVAL);
-                if (params->is_inf)
-                    params->data->flags |= SF_IS_INF;
-            }
-            if (params->flags & SCF_DO_STCLASS) {
-                ssc_init(pRExC_state, &this_class);
-                oclass = params->data->start_class;
-                params->data->start_class = &this_class;
-                f |= SCF_DO_STCLASS_AND;
-                f &= ~SCF_DO_STCLASS_OR;
-            }
-            /* Exclude from super-linear cache processing any {n,m}
-               regops for which the combination of input pos and regex
-               pos is not enough information to determine if a match
-               will be possible.
-
-               For example, in the regex /foo(bar\s*){4,8}baz/ with the
-               regex pos at the \s*, the prospects for a match depend not
-               only on the input position but also on how many (bar\s*)
-               repeats into the {4,8} we are. */
-           if ((mincount > 1) || (maxcount > 1 && maxcount != REG_INFTY))
-                f &= ~SCF_WHILEM_VISITED_POS;
-
-            /* This will finish on WHILEM, setting scan, or on NULL: */
-            minnext = study_chunk(pRExC_state, &params->scan, params->minlenp, &deltanext,
-                              params->last, params->data, params->stopparen, params->recursed_depth, NULL,
-                              (mincount == 0
-                               ? (f & ~SCF_DO_SUBSTR)
-                               : f)
-                              ,params->depth+1);
-
-            if (params->flags & SCF_DO_STCLASS)
-                params->data->start_class = oclass;
-            if (mincount == 0 || minnext == 0) {
-                if (params->flags & SCF_DO_STCLASS_OR) {
-                    ssc_or(pRExC_state, params->data->start_class, (regnode_charclass *) &this_class);
-                }
-                else if (params->flags & SCF_DO_STCLASS_AND) {
-                    /* Switch to OR mode: cache the old value of
-                     * data->start_class */
-                    INIT_AND_WITHP;
-                    StructCopy(params->data->start_class, params->and_withp, regnode_ssc);
-                    params->flags &= ~SCF_DO_STCLASS_AND;
-                    StructCopy(&this_class, params->data->start_class, regnode_ssc);
-                    params->flags |= SCF_DO_STCLASS_OR;
-                    ANYOF_FLAGS(params->data->start_class)
-                                            |= SSC_MATCHES_EMPTY_STRING;
-                }
-            } else {		/* Non-zero len */
-                if (params->flags & SCF_DO_STCLASS_OR) {
-                    ssc_or(pRExC_state, params->data->start_class, (regnode_charclass *) &this_class);
-                    ssc_and(pRExC_state, params->data->start_class, (regnode_charclass *) params->and_withp);
-                }
-                else if (params->flags & SCF_DO_STCLASS_AND)
-                    ssc_and(pRExC_state, params->data->start_class, (regnode_charclass *) &this_class);
-                params->flags &= ~SCF_DO_STCLASS;
-            }
-            if (!params->scan) 		/* It was not CURLYX, but CURLY. */
-                params->scan = params->next;
-            if (!(params->flags & SCF_TRIE_DOING_RESTUDY)
-                /* ? quantifier ok, except for (?{ ... }) */
-                && (next_is_eval || !(mincount == 0 && maxcount == 1))
-                && (minnext == 0) && (deltanext == 0)
-                && params->data && !(params->data->flags & (SF_HAS_PAR|SF_IN_PAR))
-                && maxcount <= REG_INFTY/3) /* Complement check for big
-                                               count */
-            {
-                /* Fatal warnings may leak the regexp without this: */
-                SAVEFREESV(RExC_rx_sv);
-                Perl_ck_warner(aTHX_ packWARN(WARN_REGEXP),
-                    "Quantifier unexpected on zero-length expression "
-                    "in regex m/%"UTF8f"/",
-                     UTF8fARG(UTF, RExC_end - RExC_precomp,
-                              RExC_precomp));
-                (void)ReREFCNT_inc(RExC_rx_sv);
-            }
-
-            params->min += minnext * mincount;
-            params->is_inf_internal |= deltanext == SSize_t_MAX
-                     || (maxcount == REG_INFTY && minnext + deltanext > 0);
-            params->is_inf |= params->is_inf_internal;
-            if (params->is_inf) {
-                params->delta = SSize_t_MAX;
-            } else {
-                params->delta += (minnext + deltanext) * maxcount
-                         - minnext * mincount;
-            }
-            /* Try powerful optimization CURLYX => CURLYN. */
-            if (  OP(oscan) == CURLYX && params->data
-                  && params->data->flags & SF_IN_PAR
-                  && !(params->data->flags & SF_HAS_EVAL)
-                  && !deltanext && minnext == 1 ) {
-                /* Try to optimize to CURLYN.  */
-                regnode *nxt = NEXTOPER(oscan) + EXTRA_STEP_2ARGS;
-                regnode * const nxt1 = nxt;
-#ifdef DEBUGGING
-                regnode *nxt2;
-#endif
-
-                /* Skip open. */
-                nxt = regnext(nxt);
-                if (!REGNODE_SIMPLE(OP(nxt))
-                    && !(PL_regkind[OP(nxt)] == EXACT
-                         && STR_LEN(nxt) == 1))
-                    goto nogo;
-#ifdef DEBUGGING
-                nxt2 = nxt;
-#endif
-                nxt = regnext(nxt);
-                if (OP(nxt) != CLOSE)
-                    goto nogo;
-                if (RExC_open_parens) {
-                    RExC_open_parens[ARG(nxt1)-1]=oscan; /*open->CURLYM*/
-                    RExC_close_parens[ARG(nxt1)-1]=nxt+2; /*close->while*/
-                }
-                /* Now we know that nxt2 is the only contents: */
-                oscan->flags = (U8)ARG(nxt);
-                OP(oscan) = CURLYN;
-                OP(nxt1) = NOTHING;	/* was OPEN. */
-
-#ifdef DEBUGGING
-                OP(nxt1 + 1) = OPTIMIZED; /* was count. */
-                NEXT_OFF(nxt1+ 1) = 0; /* just for consistency. */
-                NEXT_OFF(nxt2) = 0;	/* just for consistency with CURLY. */
-                OP(nxt) = OPTIMIZED;	/* was CLOSE. */
-                OP(nxt + 1) = OPTIMIZED; /* was count. */
-                NEXT_OFF(nxt+ 1) = 0; /* just for consistency. */
-#endif
-            }
-          nogo:
-
-            /* Try optimization CURLYX => CURLYM. */
-            if (  OP(oscan) == CURLYX && params->data
-                  && !(params->data->flags & SF_HAS_PAR)
-                  && !(params->data->flags & SF_HAS_EVAL)
-                  && !deltanext	/* atom is fixed width */
-                  && minnext != 0	/* CURLYM can't handle zero width */
-
-                     /* Nor characters whose fold at run-time may be
-                      * multi-character */
-                  && ! (RExC_seen & REG_UNFOLDED_MULTI_SEEN)
-            ) {
-                /* XXXX How to optimize if data == 0? */
-                /* Optimize to a simpler form.  */
-                regnode *nxt = NEXTOPER(oscan) + EXTRA_STEP_2ARGS; /* OPEN */
-                regnode *nxt2;
-
-                OP(oscan) = CURLYM;
-                while ( (nxt2 = regnext(nxt)) /* skip over embedded stuff*/
-                        && (OP(nxt2) != WHILEM))
-                    nxt = nxt2;
-                OP(nxt2)  = SUCCEED; /* Whas WHILEM */
-                /* Need to optimize away parenths. */
-                if ((params->data->flags & SF_IN_PAR) && OP(nxt) == CLOSE) {
-                    /* Set the parenth number.  */
-                    regnode *nxt1 = NEXTOPER(oscan) + EXTRA_STEP_2ARGS; /* OPEN*/
-
-                    oscan->flags = (U8)ARG(nxt);
-                    if (RExC_open_parens) {
-                        RExC_open_parens[ARG(nxt1)-1]=oscan; /*open->CURLYM*/
-                        RExC_close_parens[ARG(nxt1)-1]=nxt2+1; /*close->NOTHING*/
-                    }
-                    OP(nxt1) = OPTIMIZED;	/* was OPEN. */
-                    OP(nxt) = OPTIMIZED;	/* was CLOSE. */
-
-#ifdef DEBUGGING
-                    OP(nxt1 + 1) = OPTIMIZED; /* was count. */
-                    OP(nxt + 1) = OPTIMIZED; /* was count. */
-                    NEXT_OFF(nxt1 + 1) = 0; /* just for consistency. */
-                    NEXT_OFF(nxt + 1) = 0; /* just for consistency. */
-#endif
-#if 0
-                    while ( nxt1 && (OP(nxt1) != WHILEM)) {
-                        regnode *nnxt = regnext(nxt1);
-                        if (nnxt == nxt) {
-                            if (reg_off_by_arg[OP(nxt1)])
-                                ARG_SET(nxt1, nxt2 - nxt1);
-                            else if (nxt2 - nxt1 < U16_MAX)
-                                NEXT_OFF(nxt1) = nxt2 - nxt1;
-                            else
-                                OP(nxt) = NOTHING;	/* Cannot beautify */
-                        }
-                        nxt1 = nnxt;
-                    }
-#endif
-                    /* Optimize again: */
-                    study_chunk(pRExC_state, &nxt1, params->minlenp, &deltanext, nxt,
-                                NULL, params->stopparen, params->recursed_depth, NULL, 0,params->depth+1);
-                }
-                else
-                    oscan->flags = 0;
-            }
-            else if ((OP(oscan) == CURLYX)
-                     && (params->flags & SCF_WHILEM_VISITED_POS)
-                     /* See the comment on a similar expression above.
-                        However, this time it's not a subexpression
-                        we care about, but the expression itself. */
-                     && (maxcount == REG_INFTY)
-                     && params->data && ++params->data->whilem_c < 16) {
-                /* This stays as CURLYX, we can put the count/of pair. */
-                /* Find WHILEM (as in regexec.c) */
-                regnode *nxt = oscan + NEXT_OFF(oscan);
-
-                if (OP(PREVOPER(nxt)) == NOTHING) /* LONGJMP */
-                    nxt += ARG(nxt);
-                PREVOPER(nxt)->flags = (U8)(params->data->whilem_c
-                    | (RExC_whilem_seen << 4)); /* On WHILEM */
-            }
-            if (params->data && fl & (SF_HAS_PAR|SF_IN_PAR))
-                params->pars++;
-            if (params->flags & SCF_DO_SUBSTR) {
-                SV *last_str = NULL;
-                STRLEN last_chrs = 0;
-                int counted = mincount != 0;
-
-                if (params->data->last_end > 0 && mincount != 0) { /* Ends with a
-                                                              string. */
-                    SSize_t b = pos_before >= params->data->last_start_min
-                        ? pos_before : params->data->last_start_min;
-                    STRLEN l;
-                    const char * const s = SvPV_const(params->data->last_found, l);
-                    SSize_t old = b - params->data->last_start_min;
-
-                    if (UTF)
-                        old = utf8_hop((U8*)s, old) - (U8*)s;
-                    l -= old;
-                    /* Get the added string: */
-                    last_str = newSVpvn_utf8(s  + old, l, UTF);
-                    last_chrs = UTF ? utf8_length((U8*)(s + old),
-                                        (U8*)(s + old + l)) : l;
-                    if (deltanext == 0 && pos_before == b) {
-                        /* What was added is a constant string */
-                        if (mincount > 1) {
-
-                            SvGROW(last_str, (mincount * l) + 1);
-                            repeatcpy(SvPVX(last_str) + l,
-                                      SvPVX_const(last_str), l,
-                                      mincount - 1);
-                            SvCUR_set(last_str, SvCUR(last_str) * mincount);
-                            /* Add additional parts. */
-                            SvCUR_set(params->data->last_found,
-                                      SvCUR(params->data->last_found) - l);
-                            sv_catsv(params->data->last_found, last_str);
-                            {
-                                SV * sv = params->data->last_found;
-                                MAGIC *mg =
-                                    SvUTF8(sv) && SvMAGICAL(sv) ?
-                                    mg_find(sv, PERL_MAGIC_utf8) : NULL;
-                                if (mg && mg->mg_len >= 0)
-                                    mg->mg_len += last_chrs * (mincount-1);
-                            }
-                            last_chrs *= mincount;
-                            params->data->last_end += l * (mincount - 1);
-                        }
-                    } else {
-                        /* start offset must point into the last copy */
-                        params->data->last_start_min += minnext * (mincount - 1);
-                        params->data->last_start_max += params->is_inf ? SSize_t_MAX
-                            : (maxcount - 1) * (minnext + params->data->pos_delta);
-                    }
-                }
-                /* It is counted once already... */
-                params->data->pos_min += minnext * (mincount - counted);
-#if 0
-PerlIO_printf(Perl_debug_log, "counted=%"UVuf" deltanext=%"UVuf
-                          " SSize_t_MAX=%"UVuf" minnext=%"UVuf
-                          " maxcount=%"UVuf" mincount=%"UVuf"\n",
-(UV)counted, (UV)deltanext, (UV)SSize_t_MAX, (UV)minnext, (UV)maxcount,
-(UV)mincount);
-if (deltanext != SSize_t_MAX)
-PerlIO_printf(Perl_debug_log, "LHS=%"UVuf" RHS=%"UVuf"\n",
-(UV)(-counted * deltanext + (minnext + deltanext) * maxcount
-      - minnext * mincount), (UV)(SSize_t_MAX - params->data->pos_delta));
-#endif
-                if (deltanext == SSize_t_MAX
-                    || -counted * deltanext + (minnext + deltanext) * maxcount - minnext * mincount >= SSize_t_MAX - params->data->pos_delta)
-                    params->data->pos_delta = SSize_t_MAX;
-                else
-                    params->data->pos_delta += - counted * deltanext +
-                    (minnext + deltanext) * maxcount - minnext * mincount;
-                if (mincount != maxcount) {
-                     /* Cannot extend fixed substrings found inside
-                        the group.  */
-                    scan_commit(pRExC_state, params->data, params->minlenp, params->is_inf);
-                    if (mincount && last_str) {
-                        SV * const sv = params->data->last_found;
-                        MAGIC * const mg = SvUTF8(sv) && SvMAGICAL(sv) ?
-                            mg_find(sv, PERL_MAGIC_utf8) : NULL;
-
-                        if (mg)
-                            mg->mg_len = -1;
-                        sv_setsv(sv, last_str);
-                        params->data->last_end = params->data->pos_min;
-                        params->data->last_start_min = params->data->pos_min - last_chrs;
-                        params->data->last_start_max = params->is_inf
-                            ? SSize_t_MAX
-                            : params->data->pos_min + params->data->pos_delta - last_chrs;
-                    }
-                    params->data->longest = &(params->data->longest_float);
-                }
-                SvREFCNT_dec(last_str);
-            }
-            if (params->data && (fl & SF_HAS_EVAL))
-                params->data->flags |= SF_HAS_EVAL;
-          optimize_curly_tail:
-            if (OP(oscan) != CURLYX) {
-                while (PL_regkind[OP(params->next = regnext(oscan))] == NOTHING
-                       && NEXT_OFF(params->next))
-                    NEXT_OFF(oscan) += NEXT_OFF(params->next);
-            }
-            return 0;
-
-        default:
-#ifdef DEBUGGING
-            Perl_croak(aTHX_ "panic: unexpected varying REx opcode %d",
-                                                                OP(params->scan));
-#endif
-        case REF:
-        case CLUMP:
-            if (params->flags & SCF_DO_SUBSTR) {
-                /* Cannot expect anything... */
-                scan_commit(pRExC_state, params->data, params->minlenp, params->is_inf);
-                params->data->longest = &(params->data->longest_float);
-            }
-            params->is_inf = params->is_inf_internal = 1;
-            if (params->flags & SCF_DO_STCLASS_OR) {
-                if (OP(params->scan) == CLUMP) {
-                    /* Actually is any start char, but very few code points
-                     * aren't start characters */
-                    ssc_match_all_cp(params->data->start_class);
-                }
-                else {
-                    ssc_anything(params->data->start_class);
-                }
-            }
-            params->flags &= ~SCF_DO_STCLASS;
-            break;
-        }
-    }
-    else if (OP(params->scan) == LNBREAK) {
+    } else if (OP(params->scan) == WHILEM) {
+        return rck_whilem(pRExC_state, params);
+    } else if (PL_regkind[OP(params->scan)] == REF) {
+        /* REF REFF REFFL REFFU REFFA NREF NREFF NREFFL NREFFU NREFFA */
+        return rck_refish(pRExC_state, params);
+    } else if (OP(params->scan) == CLUMP) {
+        return rck_clump(pRExC_state, params);
+    } else if (OP(params->scan) == STAR) {
+        return rck_star(pRExC_state, params);
+    } else if (OP(params->scan) == PLUS) {
+        return rck_plus(pRExC_state, params);
+    } else if (PL_regkind[OP(params->scan)] == CURLY) {
+        /* CURLY CURLYN CURLYM CURLYX */
+        return rck_curlyish(pRExC_state, params);
+    } else if (OP(params->scan) == LNBREAK) {
         if (params->flags & SCF_DO_STCLASS) {
             if (params->flags & SCF_DO_STCLASS_AND) {
                 ssc_intersection(params->data->start_class,
