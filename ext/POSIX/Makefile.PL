@@ -144,3 +144,17 @@ WriteConstants(
     NAME => 'POSIX',
     NAMES => \@names,
 );
+
+package MY;
+
+sub cflags {
+    my $self = shift;
+
+    my $cflags = $self->SUPER::cflags(@_);
+
+    if ($^O eq "freebsd" && $Config::Config{osvers} =~ /^10\.0-/) {
+	$cflags =~ s/(?<=[ =])-ansi\b//;
+    }
+
+    $cflags;
+}
