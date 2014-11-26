@@ -8,6 +8,9 @@ BEGIN {
 
 use strict;
 
+no warnings 'locale';
+# Currently this file doesn't test things where the warnings make 
+
 ########
 # These tests are here instead of lib/locale.t because
 # some bugs depend on in the internal state of the locale
@@ -290,7 +293,7 @@ EOF
 
     {
         open my $saved_stderr, ">&STDERR" or die "Can't dup STDERR: $!";
-        close STDERR;
+        #close STDERR;
 
         {
             local $ENV{LC_ALL} = "invalid";
@@ -299,11 +302,15 @@ EOF
 
             # Can't turn off the warnings, so send them to /dev/null
             if (! fresh_perl_is(<<"EOF", "$difference", { stderr => "devnull" },
+                BEGIN { \$^D = "L"; }
                 if (\$ENV{LC_ALL} ne "invalid") {
                     # Make the test pass if the sh didn't accept the ENV set
                     print "$difference\n";
                     exit 0;
                 }
+                print "LC_ALL=", \$ENV{LC_ALL}, "\n";
+                print "LC_NUMERIC=", \$ENV{LC_NUMERIC}, "\n";
+                print "LANG=", \$ENV{LANG}, "\n";
                 use locale;
                 use POSIX qw(locale_h);
                 my \$in = 4.2;
@@ -343,7 +350,7 @@ EOF
             }
         }
 
-    open STDERR, ">&", $saved_stderr or die "Can't dup \$saved_stderr: $!";
+    #open STDERR, ">&", $saved_stderr or die "Can't dup \$saved_stderr: $!";
     }
 
     {
