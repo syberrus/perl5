@@ -1633,6 +1633,20 @@ Perl_sv_setiv(pTHX_ SV *const sv, const IV i)
     SV_CHECK_THINKFIRST_COW_DROP(sv);
     switch (SvTYPE(sv)) {
     case SVt_NULL:
+        /* avoid sv_upgrade() for the SVt_NULL case */
+        assert(
+            (SVt_NULL == 0) &&
+            ((SvFLAGS(sv) & (SVTYPEMASK|SVf_OOK|SVf_OK|SVf_IVisUV|SVf_UTF8)) == 0)
+        );
+        SvANY(sv) = (XPVIV*)((char*)&(sv->sv_u.svu_iv) - STRUCT_OFFSET(XPVIV, xiv_iv));
+        /* replace this: */
+        /* SvIOK_only(into); */
+        /* with this: */
+        SvFLAGS(sv) |= (SVt_IV | SVf_IOK | SVp_IOK);
+        SvIV_set(sv, i);
+        SvTAINT(sv);
+        return;
+        /* not reached */
     case SVt_NV:
 	sv_upgrade(sv, SVt_IV);
 	break;
@@ -9326,7 +9340,19 @@ Perl_newSViv(pTHX_ const IV i)
     SV *sv;
 
     new_SV(sv);
-    sv_setiv(sv,i);
+
+    if (0) {
+        assert(
+            (SVt_NULL == 0) &&
+            ((SvFLAGS(sv) & (SVTYPEMASK|SVf_OOK|SVf_OK|SVf_IVisUV|SVf_UTF8)) == 0)
+        );
+        SvANY(sv) = (XPVIV*)((char*)&(sv->sv_u.svu_iv) - STRUCT_OFFSET(XPVIV, xiv_iv));
+        SvFLAGS(sv) |= (SVt_IV | SVf_IOK | SVp_IOK);
+        SvIV_set(sv, i);
+    } else {
+        sv_setiv(sv, i);
+    }
+
     return sv;
 }
 
