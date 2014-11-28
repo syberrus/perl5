@@ -7135,6 +7135,12 @@ STATIC bool	S_rck_refish(pTHX_ RExC_state_t *pRExC_state, rck_params_t *params)
 #define PERL_ARGS_ASSERT_RCK_REFISH	\
 	assert(pRExC_state); assert(params)
 
+STATIC bool	S_rck_simple(pTHX_ RExC_state_t *pRExC_state, rck_params_t *params)
+			__attribute__nonnull__(pTHX_1)
+			__attribute__nonnull__(pTHX_2);
+#define PERL_ARGS_ASSERT_RCK_SIMPLE	\
+	assert(pRExC_state); assert(params)
+
 STATIC bool	S_rck_star(pTHX_ RExC_state_t *pRExC_state, rck_params_t *params)
 			__attribute__nonnull__(pTHX_1)
 			__attribute__nonnull__(pTHX_2);
