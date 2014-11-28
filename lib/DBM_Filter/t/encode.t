@@ -1,4 +1,4 @@
-
+# XXX Maybe doesn't work, or wait for encode
 use strict;
 use warnings;
 use Carp;
@@ -13,6 +13,10 @@ BEGIN
     if ($@) {
         print "1..0 #  Skip: Encode is not available\n";
         exit 0;
+    }
+    if (ord("A") == 193) {
+	print "1..0 # Skip: EBCDIC\n";
+	exit 0;
     }
 }
 
