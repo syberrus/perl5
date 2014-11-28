@@ -25,12 +25,13 @@ sub txt_compare {
     local $/;
     my ($A, $B);
     for (($A,$B) = @_) { open(_,"<$_") ? $_ = <_> : die "$_ : $!"; close _ }
+    print STDERR $A;
     $A cmp $B;
 }
 
 my $result = runperl( progfile => $extracted_program,
                       stderr => 1,
-                      args => ['-d.', '-Q', 'lib/h2ph.h']);
+                      args => ['-d.', '-h', '-D', '-Q', 'lib/h2ph.h']);
 is( $result, '', "output is free of warnings" );
 is( $?, 0, "$extracted_program runs successfully" );
 
