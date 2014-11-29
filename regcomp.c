@@ -4674,6 +4674,227 @@ STATIC bool S_rck_eolish(pTHX_ RExC_state_t *pRExC_state, rck_params_t *params)
     return 0;
 }
 
+STATIC bool S_rck_lookaround(pTHX_ RExC_state_t *pRExC_state, rck_params_t *params)
+{
+#ifdef DEBUGGING
+    VOL IV re_debug_flags = params->re_debug_flags;
+#endif
+
+    PERL_ARGS_ASSERT_RCK_LOOKAROUND;
+
+    if (!(params->scan->flags || params->data
+            || (params->flags & SCF_DO_STCLASS))
+    ) {
+        /* nothing to do here, move on to the next node */
+        params->scan = regnext(params->scan);
+        return 0;
+    }
+
+    if (OP(params->scan) == UNLESSM
+        && params->scan->flags == 0
+        && OP(NEXTOPER(NEXTOPER(params->scan))) == NOTHING
+        && OP(regnext(NEXTOPER(NEXTOPER(params->scan)))) == SUCCEED
+    ) {
+        regnode *opt;
+        regnode *upto = regnext(params->scan);
+        DEBUG_PARSE_r({
+            DEBUG_STUDYDATA("OPFAIL",
+                    params->data, params->depth, params->is_inf);
+            /*DEBUG_PARSE_MSG("opfail");*/
+            regprop(RExC_rx, RExC_mysv, upto, NULL, pRExC_state);
+            PerlIO_printf(Perl_debug_log,
+                "~ replace with OPFAIL pointed at %s (%"IVdf") offset %"IVdf"\n",
+                SvPV_nolen_const(RExC_mysv),
+                (IV)REG_NODE_NUM(upto),
+                (IV)(upto - params->scan)
+            );
+        });
+        OP(params->scan) = OPFAIL;
+        NEXT_OFF(params->scan) = upto - params->scan;
+        for (opt = params->scan + 1; opt < upto; opt++)
+            OP(opt) = OPTIMIZED;
+        params->scan = upto;
+        return 0;
+    }
+    if (!PERL_ENABLE_POSITIVE_ASSERTION_STUDY
+        || OP(params->scan) == UNLESSM)
+    {
+        /* Negative Lookahead/lookbehind
+           In this case we can't do fixed string optimisation.
+        */
+
+        SSize_t deltanext, minnext, fake = 0;
+        regnode *nscan;
+        regnode_ssc intrnl;
+        int f = 0;
+
+        StructCopy(&zero_scan_data, &params->data_fake, scan_data_t);
+        if (params->data) {
+            params->data_fake.whilem_c = params->data->whilem_c;
+            params->data_fake.last_closep = params->data->last_closep;
+        } else {
+            params->data_fake.last_closep = &fake;
+        }
+        params->data_fake.pos_delta = params->delta;
+        if (params->flags & SCF_DO_STCLASS
+            && !params->scan->flags
+            && OP(params->scan) == IFMATCH
+        ) { /* Lookahead */
+            ssc_init(pRExC_state, &intrnl);
+            params->data_fake.start_class = &intrnl;
+            f |= SCF_DO_STCLASS_AND;
+        }
+        if (params->flags & SCF_WHILEM_VISITED_POS)
+            f |= SCF_WHILEM_VISITED_POS;
+        params->next = regnext(params->scan);
+        nscan = NEXTOPER(NEXTOPER(params->scan));
+        minnext = study_chunk(
+            pRExC_state, &nscan, params->minlenp, &deltanext, params->last,
+            &params->data_fake, params->stopparen, params->recursed_depth,
+            NULL, f, params->depth + 1
+        );
+        if (params->scan->flags) {
+            if (deltanext) {
+                FAIL("Variable length lookbehind not implemented");
+            } else if (minnext > (I32)U8_MAX) {
+                FAIL2("Lookbehind longer than %"UVuf" not implemented",
+                        (UV)U8_MAX);
+            }
+            params->scan->flags = (U8)minnext;
+        }
+        if (params->data) {
+            if (params->data_fake.flags & (SF_HAS_PAR | SF_IN_PAR))
+                params->pars++;
+            if (params->data_fake.flags & SF_HAS_EVAL)
+                params->data->flags |= SF_HAS_EVAL;
+            params->data->whilem_c = params->data_fake.whilem_c;
+        }
+        if (f & SCF_DO_STCLASS_AND) {
+            if (params->flags & SCF_DO_STCLASS_OR) {
+                /* OR before, AND after: ideally we would recurse with
+                 * data_fake to get the AND applied by study of the
+                 * remainder of the pattern, and then derecurse;
+                 * *** HACK *** for now just treat as "no information".
+                 * See [perl #56690].
+                 */
+                ssc_init(pRExC_state, params->data->start_class);
+            }  else {
+                /* AND before and after: combine and continue.  These
+                 * assertions are zero-length, so can match an EMPTY
+                 * string */
+                ssc_and(pRExC_state, params->data->start_class,
+                        (regnode_charclass *)&intrnl);
+                ANYOF_FLAGS(params->data->start_class)
+                        |= SSC_MATCHES_EMPTY_STRING;
+            }
+        }
+    }
+#if PERL_ENABLE_POSITIVE_ASSERTION_STUDY
+    else {
+        /* Positive Lookahead/lookbehind
+           In this case we can do fixed string optimisation,
+           but we must be careful about it. Note in the case of
+           lookbehind the positions will be offset by the minimum
+           length of the pattern, something we won't know about
+           until after the recurse.
+        */
+        SSize_t deltanext, fake = 0;
+        regnode *nscan;
+        regnode_ssc intrnl;
+        int f = 0;
+        /* We use SAVEFREEPV so that when the full compile
+            is finished perl will clean up the allocated
+            minlens when it's all done. This way we don't
+            have to worry about freeing them when we know
+            they wont be used, which would be a pain.
+         */
+        SSize_t *minnextp;
+
+        Newx(minnextp, 1, SSize_t);
+        SAVEFREEPV(minnextp);
+
+        if (params->data) {
+            StructCopy(params->data, &params->data_fake, scan_data_t);
+            if ((params->flags & SCF_DO_SUBSTR) && params->data->last_found) {
+                f |= SCF_DO_SUBSTR;
+                if (params->scan->flags)
+                    scan_commit(pRExC_state, &params->data_fake,
+                            params->minlenp, params->is_inf);
+                params->data_fake.last_found = newSVsv(params->data->last_found);
+            }
+        } else {
+            params->data_fake.last_closep = &fake;
+        }
+        params->data_fake.flags = 0;
+        params->data_fake.pos_delta = params->delta;
+        if (params->is_inf)
+            params->data_fake.flags |= SF_IS_INF;
+        if (params->flags & SCF_DO_STCLASS
+            && !params->scan->flags
+            && OP(params->scan) == IFMATCH
+        ) { /* Lookahead */
+            ssc_init(pRExC_state, &intrnl);
+            params->data_fake.start_class = &intrnl;
+            f |= SCF_DO_STCLASS_AND;
+        }
+        if (params->flags & SCF_WHILEM_VISITED_POS)
+            f |= SCF_WHILEM_VISITED_POS;
+        params->next = regnext(params->scan);
+        nscan = NEXTOPER(NEXTOPER(params->scan));
+
+        *minnextp = study_chunk(
+            pRExC_state, &nscan, minnextp, &deltanext, params->last,
+            &params->data_fake, params->stopparen, params->recursed_depth,
+            NULL, f, params->depth + 1
+        );
+        if (params->scan->flags) {
+            if (deltanext) {
+                FAIL("Variable length lookbehind not implemented");
+            } else if (*minnextp > (I32)U8_MAX) {
+                FAIL2("Lookbehind longer than %"UVuf" not implemented",
+                        (UV)U8_MAX);
+            }
+            params->scan->flags = (U8)*minnextp;
+        }
+
+        *minnextp += params->min;
+
+        if (f & SCF_DO_STCLASS_AND) {
+            ssc_and(pRExC_state, params->data->start_class,
+                    (regnode_charclass *)&intrnl);
+            ANYOF_FLAGS(params->data->start_class) |= SSC_MATCHES_EMPTY_STRING;
+        }
+        if (params->data) {
+            if (params->data_fake.flags & (SF_HAS_PAR | SF_IN_PAR))
+                params->pars++;
+            if (params->data_fake.flags & SF_HAS_EVAL)
+                params->data->flags |= SF_HAS_EVAL;
+            params->data->whilem_c = params->data_fake.whilem_c;
+            if ((params->flags & SCF_DO_SUBSTR) && params->data_fake.last_found) {
+                if (RExC_rx->minlen < *minnextp)
+                    RExC_rx->minlen = *minnextp;
+                scan_commit(pRExC_state, &params->data_fake, minnextp, params->is_inf);
+                SvREFCNT_dec_NN(params->data_fake.last_found);
+
+                if (params->data_fake.minlen_fixed != params->minlenp) {
+                    params->data->offset_fixed = params->data_fake.offset_fixed;
+                    params->data->minlen_fixed = params->data_fake.minlen_fixed;
+                    params->data->lookbehind_fixed += params->scan->flags;
+                }
+                if (params->data_fake.minlen_float != params->minlenp) {
+                    params->data->minlen_float = params->data_fake.minlen_float;
+                    params->data->offset_float_min = params->data_fake.offset_float_min;
+                    params->data->offset_float_max = params->data_fake.offset_float_max;
+                    params->data->lookbehind_float += params->scan->flags;
+                }
+            }
+        }
+    }
+#endif
+    params->scan = regnext(params->scan);
+    return 0;
+}
+
 STATIC void S_rck_enframe(pTHX_ RExC_state_t *pRExC_state, rck_params_t *params,
         regnode *start, regnode *end, I32 paren, U32 recursed_depth)
 {
@@ -5530,207 +5751,9 @@ STATIC bool S_study_chunk_one_node(pTHX_ RExC_state_t *pRExC_state, rck_params_t
     } else if (PL_regkind[OP(params->scan)] == EOL) {
         /* SEOL MEOL EOS */
         return rck_eolish(pRExC_state, params);
-    } else if (  PL_regkind[OP(params->scan)] == BRANCHJ
-             /* Lookbehind, or need to calculate parens/evals/stclass: */
-               && (params->scan->flags || params->data || (params->flags & SCF_DO_STCLASS))
-               && (OP(params->scan) == IFMATCH || OP(params->scan) == UNLESSM))
-    {
-        if ( OP(params->scan) == UNLESSM &&
-             params->scan->flags == 0 &&
-             OP(NEXTOPER(NEXTOPER(params->scan))) == NOTHING &&
-             OP(regnext(NEXTOPER(NEXTOPER(params->scan)))) == SUCCEED
-        ) {
-            regnode *opt;
-            regnode *upto= regnext(params->scan);
-            DEBUG_PARSE_r({
-                DEBUG_STUDYDATA("OPFAIL", params->data, params->depth, params->is_inf);
-
-                /*DEBUG_PARSE_MSG("opfail");*/
-                regprop(RExC_rx, RExC_mysv, upto, NULL, pRExC_state);
-                PerlIO_printf(Perl_debug_log,
-                    "~ replace with OPFAIL pointed at %s (%"IVdf") offset %"IVdf"\n",
-                    SvPV_nolen_const(RExC_mysv),
-                    (IV)REG_NODE_NUM(upto),
-                    (IV)(upto - params->scan)
-                );
-            });
-            OP(params->scan) = OPFAIL;
-            NEXT_OFF(params->scan) = upto - params->scan;
-            for (opt= params->scan + 1; opt < upto ; opt++)
-                OP(opt) = OPTIMIZED;
-            params->scan= upto;
-            return 0;
-        }
-        if ( !PERL_ENABLE_POSITIVE_ASSERTION_STUDY
-            || OP(params->scan) == UNLESSM )
-        {
-            /* Negative Lookahead/lookbehind
-               In this case we can't do fixed string optimisation.
-            */
-
-            SSize_t deltanext, minnext, fake = 0;
-            regnode *nscan;
-            regnode_ssc intrnl;
-            int f = 0;
-
-            StructCopy(&zero_scan_data, &params->data_fake, scan_data_t);
-            if (params->data) {
-                params->data_fake.whilem_c = params->data->whilem_c;
-                params->data_fake.last_closep = params->data->last_closep;
-            }
-            else
-                params->data_fake.last_closep = &fake;
-            params->data_fake.pos_delta = params->delta;
-            if ( params->flags & SCF_DO_STCLASS && !params->scan->flags
-                 && OP(params->scan) == IFMATCH ) { /* Lookahead */
-                ssc_init(pRExC_state, &intrnl);
-                params->data_fake.start_class = &intrnl;
-                f |= SCF_DO_STCLASS_AND;
-            }
-            if (params->flags & SCF_WHILEM_VISITED_POS)
-                f |= SCF_WHILEM_VISITED_POS;
-            params->next = regnext(params->scan);
-            nscan = NEXTOPER(NEXTOPER(params->scan));
-            minnext = study_chunk(pRExC_state, &nscan, params->minlenp, &deltanext,
-                                  params->last, &params->data_fake, params->stopparen,
-                                  params->recursed_depth, NULL, f, params->depth+1);
-            if (params->scan->flags) {
-                if (deltanext) {
-                    FAIL("Variable length lookbehind not implemented");
-                }
-                else if (minnext > (I32)U8_MAX) {
-                    FAIL2("Lookbehind longer than %"UVuf" not implemented",
-                          (UV)U8_MAX);
-                }
-                params->scan->flags = (U8)minnext;
-            }
-            if (params->data) {
-                if (params->data_fake.flags & (SF_HAS_PAR|SF_IN_PAR))
-                    params->pars++;
-                if (params->data_fake.flags & SF_HAS_EVAL)
-                    params->data->flags |= SF_HAS_EVAL;
-                params->data->whilem_c = params->data_fake.whilem_c;
-            }
-            if (f & SCF_DO_STCLASS_AND) {
-                if (params->flags & SCF_DO_STCLASS_OR) {
-                    /* OR before, AND after: ideally we would recurse with
-                     * data_fake to get the AND applied by study of the
-                     * remainder of the pattern, and then derecurse;
-                     * *** HACK *** for now just treat as "no information".
-                     * See [perl #56690].
-                     */
-                    ssc_init(pRExC_state, params->data->start_class);
-                }  else {
-                    /* AND before and after: combine and continue.  These
-                     * assertions are zero-length, so can match an EMPTY
-                     * string */
-                    ssc_and(pRExC_state, params->data->start_class, (regnode_charclass *) &intrnl);
-                    ANYOF_FLAGS(params->data->start_class)
-                                               |= SSC_MATCHES_EMPTY_STRING;
-                }
-            }
-        }
-#if PERL_ENABLE_POSITIVE_ASSERTION_STUDY
-        else {
-            /* Positive Lookahead/lookbehind
-               In this case we can do fixed string optimisation,
-               but we must be careful about it. Note in the case of
-               lookbehind the positions will be offset by the minimum
-               length of the pattern, something we won't know about
-               until after the recurse.
-            */
-            SSize_t deltanext, fake = 0;
-            regnode *nscan;
-            regnode_ssc intrnl;
-            int f = 0;
-            /* We use SAVEFREEPV so that when the full compile
-                is finished perl will clean up the allocated
-                minlens when it's all done. This way we don't
-                have to worry about freeing them when we know
-                they wont be used, which would be a pain.
-             */
-            SSize_t *minnextp;
-            Newx( minnextp, 1, SSize_t );
-            SAVEFREEPV(minnextp);
-
-            if (params->data) {
-                StructCopy(params->data, &params->data_fake, scan_data_t);
-                if ((params->flags & SCF_DO_SUBSTR) && params->data->last_found) {
-                    f |= SCF_DO_SUBSTR;
-                    if (params->scan->flags)
-                        scan_commit(pRExC_state, &params->data_fake, params->minlenp, params->is_inf);
-                    params->data_fake.last_found=newSVsv(params->data->last_found);
-                }
-            }
-            else
-                params->data_fake.last_closep = &fake;
-            params->data_fake.flags = 0;
-            params->data_fake.pos_delta = params->delta;
-            if (params->is_inf)
-                params->data_fake.flags |= SF_IS_INF;
-            if ( params->flags & SCF_DO_STCLASS && !params->scan->flags
-                 && OP(params->scan) == IFMATCH ) { /* Lookahead */
-                ssc_init(pRExC_state, &intrnl);
-                params->data_fake.start_class = &intrnl;
-                f |= SCF_DO_STCLASS_AND;
-            }
-            if (params->flags & SCF_WHILEM_VISITED_POS)
-                f |= SCF_WHILEM_VISITED_POS;
-            params->next = regnext(params->scan);
-            nscan = NEXTOPER(NEXTOPER(params->scan));
-
-            *minnextp = study_chunk(pRExC_state, &nscan, minnextp,
-                                    &deltanext, params->last, &params->data_fake,
-                                    params->stopparen, params->recursed_depth, NULL,
-                                    f,params->depth+1);
-            if (params->scan->flags) {
-                if (deltanext) {
-                    FAIL("Variable length lookbehind not implemented");
-                }
-                else if (*minnextp > (I32)U8_MAX) {
-                    FAIL2("Lookbehind longer than %"UVuf" not implemented",
-                          (UV)U8_MAX);
-                }
-                params->scan->flags = (U8)*minnextp;
-            }
-
-            *minnextp += params->min;
-
-            if (f & SCF_DO_STCLASS_AND) {
-                ssc_and(pRExC_state, params->data->start_class, (regnode_charclass *) &intrnl);
-                ANYOF_FLAGS(params->data->start_class) |= SSC_MATCHES_EMPTY_STRING;
-            }
-            if (params->data) {
-                if (params->data_fake.flags & (SF_HAS_PAR|SF_IN_PAR))
-                    params->pars++;
-                if (params->data_fake.flags & SF_HAS_EVAL)
-                    params->data->flags |= SF_HAS_EVAL;
-                params->data->whilem_c = params->data_fake.whilem_c;
-                if ((params->flags & SCF_DO_SUBSTR) && params->data_fake.last_found) {
-                    if (RExC_rx->minlen<*minnextp)
-                        RExC_rx->minlen=*minnextp;
-                    scan_commit(pRExC_state, &params->data_fake, minnextp, params->is_inf);
-                    SvREFCNT_dec_NN(params->data_fake.last_found);
-
-                    if ( params->data_fake.minlen_fixed != params->minlenp )
-                    {
-                        params->data->offset_fixed= params->data_fake.offset_fixed;
-                        params->data->minlen_fixed= params->data_fake.minlen_fixed;
-                        params->data->lookbehind_fixed+= params->scan->flags;
-                    }
-                    if ( params->data_fake.minlen_float != params->minlenp )
-                    {
-                        params->data->minlen_float= params->data_fake.minlen_float;
-                        params->data->offset_float_min=params->data_fake.offset_float_min;
-                        params->data->offset_float_max=params->data_fake.offset_float_max;
-                        params->data->lookbehind_float+= params->scan->flags;
-                    }
-                }
-            }
-        }
-#endif
-    }
-    else if (OP(params->scan) == OPEN) {
+    } else if (OP(params->scan) == IFMATCH || OP(params->scan) == UNLESSM) {
+        return rck_lookaround(pRExC_state, params);
+    } else if (OP(params->scan) == OPEN) {
         if (params->stopparen != (I32)ARG(params->scan))
             params->pars++;
     }

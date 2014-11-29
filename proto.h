@@ -7123,6 +7123,12 @@ STATIC bool	S_rck_lnbreak(pTHX_ RExC_state_t *pRExC_state, rck_params_t *params)
 #define PERL_ARGS_ASSERT_RCK_LNBREAK	\
 	assert(pRExC_state); assert(params)
 
+STATIC bool	S_rck_lookaround(pTHX_ RExC_state_t *pRExC_state, rck_params_t *params)
+			__attribute__nonnull__(pTHX_1)
+			__attribute__nonnull__(pTHX_2);
+#define PERL_ARGS_ASSERT_RCK_LOOKAROUND	\
+	assert(pRExC_state); assert(params)
+
 STATIC void	S_rck_make_trie(pTHX_ RExC_state_t *pRExC_state, rck_params_t *params)
 			__attribute__nonnull__(pTHX_1)
 			__attribute__nonnull__(pTHX_2);
