@@ -7043,6 +7043,12 @@ STATIC bool	S_rck_branchj(pTHX_ RExC_state_t *pRExC_state, rck_params_t *params)
 #define PERL_ARGS_ASSERT_RCK_BRANCHJ	\
 	assert(pRExC_state); assert(params)
 
+STATIC bool	S_rck_close(pTHX_ RExC_state_t *pRExC_state, rck_params_t *params)
+			__attribute__nonnull__(pTHX_1)
+			__attribute__nonnull__(pTHX_2);
+#define PERL_ARGS_ASSERT_RCK_CLOSE	\
+	assert(pRExC_state); assert(params)
+
 STATIC bool	S_rck_clump(pTHX_ RExC_state_t *pRExC_state, rck_params_t *params)
 			__attribute__nonnull__(pTHX_1)
 			__attribute__nonnull__(pTHX_2);
@@ -7085,6 +7091,12 @@ STATIC bool	S_rck_eolish(pTHX_ RExC_state_t *pRExC_state, rck_params_t *params)
 			__attribute__nonnull__(pTHX_1)
 			__attribute__nonnull__(pTHX_2);
 #define PERL_ARGS_ASSERT_RCK_EOLISH	\
+	assert(pRExC_state); assert(params)
+
+STATIC bool	S_rck_eval(pTHX_ RExC_state_t *pRExC_state, rck_params_t *params)
+			__attribute__nonnull__(pTHX_1)
+			__attribute__nonnull__(pTHX_2);
+#define PERL_ARGS_ASSERT_RCK_EVAL	\
 	assert(pRExC_state); assert(params)
 
 STATIC bool	S_rck_exact(pTHX_ RExC_state_t *pRExC_state, rck_params_t *params)
@@ -7133,6 +7145,12 @@ STATIC void	S_rck_make_trie(pTHX_ RExC_state_t *pRExC_state, rck_params_t *param
 			__attribute__nonnull__(pTHX_1)
 			__attribute__nonnull__(pTHX_2);
 #define PERL_ARGS_ASSERT_RCK_MAKE_TRIE	\
+	assert(pRExC_state); assert(params)
+
+STATIC bool	S_rck_open(pTHX_ RExC_state_t *pRExC_state, rck_params_t *params)
+			__attribute__nonnull__(pTHX_1)
+			__attribute__nonnull__(pTHX_2);
+#define PERL_ARGS_ASSERT_RCK_OPEN	\
 	assert(pRExC_state); assert(params)
 
 STATIC bool	S_rck_plus(pTHX_ RExC_state_t *pRExC_state, rck_params_t *params)
