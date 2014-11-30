@@ -87,7 +87,7 @@ BEGIN {
     }
 }
 
-our $VERSION = '1.34';
+our $VERSION = '1.35';
 
 our $MaxEvalLen = 0;
 our $Verbose    = 0;
@@ -304,7 +304,16 @@ sub format_arg {
 	}
     } else {
 	$arg =~ s/([\"\\\$\@])/\\$1/g;
-	$arg =~ s/([^ -~])/sprintf("\\x{%x}",ord($1))/eg;
+        if ("$]" < 5.014) {
+            $arg =~ s/([^ -~])/sprintf("\\x{%x}",ord($1))/eg;
+        }
+        else {
+            # /a came along in v5.14.  /[[:print:]]/a is portable to EBCDIC
+            # and is also minisculey faster and smaller in some releases (and
+            # no worse in the others) than the alternative above, so prefer it
+            # when available
+	    $arg =~ s/([[:^print:]])/sprintf("\\x{%x}",ord($1))/aeg;
+        }
     }
     downgrade($arg, 1);
     return "\"".$arg."\"".$suffix;
@@ -318,10 +327,16 @@ sub Regexp::CARP_TRACE {
 	    my $o = ord(substr($arg, $i, 1));
 	    my $x = substr($arg, 0, 0);   # work around bug on Perl 5.8.{1,2}
 	    substr $arg, $i, 1, sprintf("\\x{%x}", $o)
+                # khw thinks this should be >= 0x7f, and other occurrences too
 		if $o < 0x20 || $o > 0x7f;
 	}
-    } else {
+    }
+    elsif ("$]" < 5.014) {
 	$arg =~ s/([^ -~])/sprintf("\\x{%x}",ord($1))/eg;
+    }
+    else {
+        # See comment above about /a and :print:
+	$arg =~ s/([[:^print:]])/sprintf("\\x{%x}",ord($1))/aeg;
     }
     downgrade($arg, 1);
     my $suffix = "";
@@ -864,9 +879,6 @@ Defaults to C<0>.
 The Carp routines don't handle exception objects currently.
 If called with a first argument that is a reference, they simply
 call die() or warn(), as appropriate.
-
-Some of the Carp code assumes that Perl's basic character encoding is
-ASCII, and will go wrong on an EBCDIC platform.
 
 =head1 SEE ALSO
 
