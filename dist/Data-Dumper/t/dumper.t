@@ -1,4 +1,5 @@
 #!./perl -w
+$!=1;
 #
 # testsuite for Data::Dumper
 #
@@ -91,6 +92,9 @@ else {
 }
 
 print "1..$TMAX\n";
+
+# 131073 without verbose
+BEGIN { $^D = 1179649;  }
 
 ############# 310
 ## Perl code was using /...$/ and hence missing the \n.
