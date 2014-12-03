@@ -917,10 +917,10 @@ EOP
 SKIP: {
     #skip("(EBCDIC and) version strings are bad idea", 2) if $::IS_EBCDIC;
 
-    is("1.20.300.4000", sprintf "%vd", pack("U*",utf8::unicode_to_native(1),utf8::unicode_to_native(20),300,4000));
-    is("1.20.300.4000", sprintf "%vd", pack("  U*",utf8::unicode_to_native(1),utf8::unicode_to_native(20),300,4000));
+    is("1.20.300.4000", sprintf "%vd", pack("U*",utf8::native_to_unicode(1),utf8::native_to_unicode(20),300,4000));
+    is("1.20.300.4000", sprintf "%vd", pack("  U*",utf8::native_to_unicode(1),utf8::native_to_unicode(20),300,4000));
 }
-isnt(v1.20.300.4000, sprintf "%vd", pack("C0U*",utf8::unicode_to_native(1),utf8::unicode_to_native(20),300,4000));
+isnt(v1.20.300.4000, sprintf "%vd", pack("C0U*",utf8::native_to_unicode(1),utf8::native_to_unicode(20),300,4000));
 
 my $rslt = join " ", map { ord } split "", byte_utf8a_to_utf8n("\xc7\xa2");
 # The ASCII UTF-8 of U+1E2 is "\xc7\xa2"
@@ -943,16 +943,25 @@ SKIP: {
     #skip "Not for EBCDIC", 4 if $::IS_EBCDIC;
 
     # does pack U0C create Unicode?
-    is("@{[pack('U0C*', 100, 195, 136)]}", v100.v200);
+    # XXX comments
+    my $cp202 = chr(202);
+    utf8::upgrade $cp202;
+    my @bytes202;
+    {   # This is portable across character sets
+        use bytes;
+        @bytes202 = map { ord } split "", $cp202;
+        print STDERR  __LINE__ . ": " . join '.', @bytes202;
+    }
+    is("@{[pack('U0C*', 100, @bytes202)]}", v100.v202);
 
     # does pack C0U create characters?
-    is("@{[pack('C0U*', 100, 200)]}", pack("C*", 100, 195, 136));
+    is("@{[pack('C0U*', 100, 202)]}", pack("C*", 100, @bytes202));
 
     # does unpack U0U on byte data warn?
     {
 	use warnings qw(NONFATAL all);;
 
-        my $bad = pack("U0C", 255);
+        my $bad = pack("U0C", 202);
         local $SIG{__WARN__} = sub { $@ = "@_" };
         my @null = unpack('U0U', $bad);
         like($@, qr/^Malformed UTF-8 character /);
@@ -1984,6 +1993,7 @@ my $first_byte = ord latin1_to_native("\341");
 }
 {
     #50256
+    # This test is for the bit pattern "\x61\x62", which is ASCII "ab"
     # XXX add comment
     my ($v) = split //, unpack ('(B)*', native_to_latin1('ab'));
     is($v, 0); # Doesn't SEGV :-)
