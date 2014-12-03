@@ -301,8 +301,7 @@ EOF
             local $ENV{LANG} = $different;
 
             # Can't turn off the warnings, so send them to /dev/null
-            if (! fresh_perl_is(<<"EOF", "$difference", { stderr => "devnull" },
-                BEGIN { \$^D = "L"; }
+            if (! fresh_perl_is(<<"EOF", "$difference", { switches => ["-DL"] },
                 if (\$ENV{LC_ALL} ne "invalid") {
                     # Make the test pass if the sh didn't accept the ENV set
                     print "$difference\n";
