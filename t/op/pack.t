@@ -950,7 +950,7 @@ SKIP: {
     {   # This is portable across character sets
         use bytes;
         @bytes202 = map { ord } split "", $cp202;
-        print STDERR  __LINE__ . ": " . join '.', @bytes202;
+        print STDERR  "\n", __LINE__, ": ", join('.', @bytes202), "\n";
     }
     is("@{[pack('U0C*', 100, @bytes202)]}", v100.v202);
 
@@ -1681,6 +1681,10 @@ my $first_byte = ord latin1_to_native("\341");
     is(pack("u", $down), pack("u", $up), "u pack is neutral");
     is(unpack("u", pack("u", $down)), $down, "u unpack to downgraded works");
     is(unpack("U0C0u", pack("u", $down)), $up, "u unpack to upgraded works");
+    my $khw = pack("u", $down);
+    {   use bytes;
+        print STDERR  "\n", __LINE__, ": ", join('.', map { ord } split "", $khw), "\n";
+    }
 
     # p/P format
     # This actually only tests something if the address contains a byte >= 0x80
