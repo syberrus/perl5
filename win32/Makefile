@@ -1319,7 +1319,7 @@ minitest : $(MINIPERL) $(GLOBEXE) $(CONFIGPM) utils $(UNIDATAFILES)
 	$(XCOPY) $(GLOBEXE) ..\t\$(NULL)
 	attrib -r ..\t\*.*
 	cd ..\t && \
-	$(MINIPERL) -I..\lib harness base/*.t comp/*.t cmd/*.t io/*.t opbasic/*.t op/*.t pragma/*.t
+	$(MINIPERL) -I..\lib TEST base/*.t comp/*.t cmd/*.t io/*.t opbasic/*.t op/*.t pragma/*.t
 
 test-prep : all utils ../pod/perltoc.pod
 	$(XCOPY) $(PERLEXE) ..\t\$(NULL)
