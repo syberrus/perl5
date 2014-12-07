@@ -1750,7 +1750,7 @@ $a x= $b;
 # @_ with padrange
 my($a, $b, $c) = @_;
 ####
-# SKIP ?$] < 5.017004 && "lexical subs not implemented on this Perl version"
+# SKIP ? ($] < 5.017004 || $::IS_EBCDIC) && "lexical subs not implemented on this Perl version, or is on EBCDIC which has a different warning bits representation"
 # lexical subroutine
 use feature 'lexical_subs';
 no warnings "experimental::lexical_subs";
@@ -1766,7 +1766,7 @@ my sub f {
 BEGIN {${^WARNING_BITS} = "TUUUUUUUUUUUUTUU\005"}
 print f();
 ####
-# SKIP ?$] < 5.017004 && "lexical subs not implemented on this Perl version"
+# SKIP ? ($] < 5.017004 || $::IS_EBCDIC) && "lexical subs not implemented on this Perl version, or is on EBCDIC which has a different warning bits representation"
 # lexical "state" subroutine
 use feature 'state', 'lexical_subs';
 no warnings 'experimental::lexical_subs';
