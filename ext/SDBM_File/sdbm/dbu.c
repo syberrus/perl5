@@ -229,14 +229,14 @@ prdatum(FILE *stream, datum d)
 
 	while (n--) {
 		c = *p++ & 0377;
-		if (c & 0200) {
-			fprintf(stream, "M-");
-			c &= 0177;
+		if (! isASCII(c)) {
+                    /* XXX Got rid of Meta- notation even on ASCII platforms */
+                    fprintf(stream, "\\x{%02x}", c);
 		}
-		if (c == 0177 || c < ' ') 
-			fprintf(stream, "^%c", (c == 0177) ? '?' : c + '@');
+                else if (isCNTRL(c))
+                    fprintf(stream, "^%c", toCTRL(c));
 		else
-			putc(c, stream);
+                    putc(c, stream);
 	}
 }
 
