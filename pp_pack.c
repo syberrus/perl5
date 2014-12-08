@@ -1761,7 +1761,7 @@ S_unpack_rec(pTHX_ tempsym_t* symptr, const char *s, const char *strbeg, const c
 		    }
 		}
 	    } else {
-		while (s < strend && *s > ' ' && ISUUCHAR(*s)) {
+		while (s < strend && *s != ' ' && ISUUCHAR(*s)) {
 		    I32 a, b, c, d;
 		    char hunk[3];
 
