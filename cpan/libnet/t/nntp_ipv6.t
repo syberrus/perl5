@@ -28,7 +28,7 @@ my $srv = $inet6class->new(
 plan skip_all => "cannot create listener on ::1: $!" if ! $srv;
 my $host = $srv->sockhost;
 my $port = $srv->sockport;
-diag("server on $host port $port");
+note("server on $host port $port");
 
 plan tests => 1;
 
