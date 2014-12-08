@@ -203,7 +203,8 @@ decode_base64(sv)
 	while (str < end) {
 	    int i = 0;
             do {
-		unsigned char uc = index_64[NATIVE_TO_ASCII(*str++)];
+		unsigned char uc = index_64[NATIVE_TO_ASCII(*str)];
+		str++;
 		if (uc != INVALID)
 		    c[i++] = uc;
 
@@ -289,7 +290,8 @@ decoded_base64_length(sv)
 	CODE:
 	RETVAL = 0;
 	while (str < end) {
-	    unsigned char uc = index_64[NATIVE_TO_ASCII(*str++)];
+            unsigned char uc = index_64[NATIVE_TO_ASCII(*str)];
+            str++;
 	    if (uc == INVALID)
 		continue;
 	    if (uc == EQ)
