@@ -1002,10 +1002,10 @@ $(MINIDIR) :
 	if not exist "$(MINIDIR)" mkdir "$(MINIDIR)"
 
 $(MINICORE_OBJ) : $(CORE_NOCFG_H)
-	$(CC) -c $(CFLAGS) -DPERL_EXTERNAL_GLOB -DPERL_IS_MINIPERL $(OBJOUT_FLAG)$@ ..\$(*F).c
+	$(CC) -c $(CFLAGS) -DPERL_EXTERNAL_GLOB -DPERL_IS_MINIPERL -DUSE_PERLIO $(OBJOUT_FLAG)$@ ..\$(*F).c
 
 $(MINIWIN32_OBJ) : $(CORE_NOCFG_H)
-	$(CC) -c $(CFLAGS) -DPERL_IS_MINIPERL $(OBJOUT_FLAG)$@ $(*F).c
+	$(CC) -c $(CFLAGS) -DPERL_IS_MINIPERL -DUSE_PERLIO $(OBJOUT_FLAG)$@ $(*F).c
 
 # -DPERL_IMPLICIT_SYS needs C++ for perllib.c
 # This is the only file that depends on perlhost.h, vmem.h, and vdir.h
