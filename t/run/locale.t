@@ -293,7 +293,7 @@ EOF
 
     {
         open my $saved_stderr, ">&STDERR" or die "Can't dup STDERR: $!";
-        close STDERR;
+        #close STDERR;
 
         {
             local $ENV{LC_ALL} = "invalid";
@@ -302,7 +302,7 @@ EOF
             local $ENV{PERL_BADLANG} = 0;
 
             # Can't turn off the warnings, so send them to /dev/null #XXX 
-            if (! fresh_perl_is(<<"EOF", "$difference", { },
+            if (! fresh_perl_is(<<"EOF", "$difference", { switches => ["-DL"] },
                 if (\$ENV{LC_ALL} ne "invalid" || \$ENV{LC_NUMERIC} ne "invalid")
                 {
                     # Make the test pass if the sh didn't accept the ENV set
@@ -311,6 +311,9 @@ EOF
                 }
                 use locale;
                 use POSIX qw(locale_h);
+                print STDERR "LC_ALL=", \$ENV{LC_ALL}, "\n";
+                print STDERR "LC_NUMERIC=", \$ENV{LC_NUMERIC}, "\n";
+                print STDERR "LANG=", \$ENV{LANG}, "\n";
                 my \$in = 4.2;
                 printf("%g", \$in);
 EOF
@@ -332,7 +335,7 @@ EOF
                 local $ENV{PERL_BADLANG} = 0;
 
                 # Can't turn off the warnings, so send them to /dev/null
-                if (! fresh_perl_is(<<"EOF", 4.2, { stderr => "devnull" },
+                if (! fresh_perl_is(<<"EOF", 4.2, { },
                     if (\$ENV{LC_ALL} ne "invalid"
                         || \$ENV{LC_NUMERIC} ne "invalid"
                         || \$ENV{LANG} ne "invalid")
@@ -352,7 +355,7 @@ EOF
             }
         }
 
-    open STDERR, ">&", $saved_stderr or die "Can't dup \$saved_stderr: $!";
+    #open STDERR, ">&", $saved_stderr or die "Can't dup \$saved_stderr: $!";
     }
 
     {
