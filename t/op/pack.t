@@ -1684,6 +1684,7 @@ my $first_byte = ord latin1_to_native("\341");
     my $khw = pack("u", $down);
     {   use bytes;
         print STDERR  "\n", __LINE__, ": ", join('.', map { ord } split "", $khw), "\n";
+        print STDERR  "\n", __LINE__, ":  ", join('  ', split "", $khw), "\n";
     }
 
     # p/P format
