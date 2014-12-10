@@ -5652,12 +5652,17 @@ Perl_get_db_sub(pTHX_ SV **svp, CV *cv)
 int
 Perl_my_dirfd(DIR * dir) {
 
+    dTHX;
+
     /* Most dirfd implementations have problems when passed NULL. */
+    DEBUG_U(PerlIO_printf(Perl_debug_log, "%s: %d: Perl_my_dirfd: dir=%d\n",__FILE__, __LINE__, dir));
     if(!dir)
         return -1;
 #ifdef HAS_DIRFD
+    DEBUG_U(PerlIO_printf(Perl_debug_log, "%s: %d: Perl_my_dirfd: dirfd=%d\n",__FILE__, __LINE__, dirfd(dir)));
     return dirfd(dir);
 #elif defined(HAS_DIR_DD_FD)
+    DEBUG_U(PerlIO_printf(Perl_debug_log, "%s: %d: Perl_my_dirfd: dd_fd=%d\n",__FILE__, __LINE__, dir->dd_fd));
     return dir->dd_fd;
 #else
     Perl_croak_nocontext(PL_no_func, "dirfd");
