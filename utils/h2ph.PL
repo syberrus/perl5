@@ -67,6 +67,8 @@ my @isatype = qw(
 	float	double	size_t
 );
 
+use re qw(Debug ALL);
+
 my %isatype;
 @isatype{@isatype} = (1) x @isatype;
 my $inif = 0;
