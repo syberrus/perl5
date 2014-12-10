@@ -823,6 +823,7 @@ sub _can_do_level {
     # make sure we save the absolute path for later cleanup
     # OK to untaint because we only ever use this internally
     # as a file path, never interpolating into the shell
+    print STDERR __FILE__, ": ", __LINE__, ": $fname\n" if defined Cwd::abs_path($fname);
     $fname = Cwd::abs_path($fname);
     ($fname) = $fname =~ /^(.*)$/;
 

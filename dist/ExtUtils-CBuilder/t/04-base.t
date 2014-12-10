@@ -265,6 +265,7 @@ is_deeply( \%split_seen, \%exp,
     $rv = $base->perl_src();
     ok( -d $rv, "perl_src(): returned a directory" );
     my $rp = Cwd::realpath($subdir);
+    print STDERR __FILE__, ": ", __LINE__, ": rv='$rv'; rp='$rp'; subdir='$subdir'\n";
   SKIP: {
       if ($^O eq 'dec_osf' && $rp =~ m[^/cluster/members/]) {
           skip "Tru64 cluster filesystem", 1;
