@@ -216,16 +216,8 @@ S_mul128(pTHX_ SV *sv, U8 m)
 
 /* Explosives and implosives. */
 
-#if 'I' == 73 && 'J' == 74
-/* On an ASCII/ISO kind of system */
-#define ISUUCHAR(ch)    ((ch) >= ' ' && (ch) < 'a')
-#else
-/*
-  Some other sort of character set - use memchr() so we don't match
-  the null byte.
- */
-#define ISUUCHAR(ch)    (memchr(PL_uuemap, (ch), sizeof(PL_uuemap)-1) || (ch) == ' ')
-#endif
+#define ISUUCHAR(ch)    (NATIVE_TO_LATIN1(ch) >= NATIVE_TO_LATIN1(' ')  \
+                      && NATIVE_TO_LATIN1(ch) <  NATIVE_TO_LATIN1('a'))
 
 /* type modifiers */
 #define TYPE_IS_SHRIEKING	0x100
