@@ -37,6 +37,7 @@ $Config{startperl}
 print OUT <<'!NO!SUBS!';
 
 use strict;
+$|=1;
 
 use Config;
 use File::Path qw(mkpath);
@@ -66,8 +67,6 @@ my @isatype = qw(
 	FILE	key_t	caddr_t
 	float	double	size_t
 );
-
-use re qw(Debug ALL);
 
 my %isatype;
 @isatype{@isatype} = (1) x @isatype;
@@ -297,6 +296,7 @@ while (defined (my $file = next_file())) {
 	} elsif (/^(?:__extension__\s+)?(?:extern|static)\s+(?:__)?inline(?:__)?\s+/
 	    and !/;\s*$/ and !/{\s*}\s*$/)
 	{ # { for vi
+    use re qw(Debug EXECUTE);
 	    # This is a hack to parse the inline functions in the glibc headers.
 	    # Warning: massive kludge ahead. We suppose inline functions
 	    # are mainly constructed like macros.
@@ -351,6 +351,7 @@ while (defined (my $file = next_file())) {
 		  (?{ push @local_variables, $1 })
 		  ']
 		 [my \$$1]gx;
+                print STDERR __FILE__, ": ", __LINE__, ": new=$new\n";
 		$new =~ s['
 		  (?:(?:__)?const(?:__)?\s+)?
 		  (?:(?:un)?signed\s+)?
@@ -360,9 +361,12 @@ while (defined (my $file = next_file())) {
 		  (?{ push @local_variables, $1 })
 		  ]
 		 [my \$$1;]gx;
+                print STDERR __FILE__, ": ", __LINE__, ": new=$new\n";
 	     }
 	    $new =~ s/&$_\b/\$$_/g for @local_variables;
+                print STDERR __FILE__, ": ", __LINE__, ": new=$new\n";
 	    $new =~ s/(["\\])/\\$1/g;       #"]);
+                print STDERR __FILE__, ": ", __LINE__, ": new=$new\n";
 	    # now that's almost like a macro (we hope)
 	    EMIT($proto);
 	}
@@ -385,11 +389,16 @@ if ($opt_e && (scalar(keys %bad_file) > 0)) {
 exit $Exit;
 
 sub EMIT {
+    use re qw(Debug EXECUTE);
+
     my $proto = shift;
 
+                print STDERR __FILE__, ": ", __LINE__, ": new=$new\n";
     $new = reindent($new);
+                print STDERR __FILE__, ": ", __LINE__, ": new=$new\n";
     $args = reindent($args);
     if ($t ne '') {
+                print STDERR __FILE__, ": ", __LINE__, ": new=$new\n";
     $new =~ s/(['\\])/\\$1/g;   #']);
     if ($opt_h) {
         print OUT $t,

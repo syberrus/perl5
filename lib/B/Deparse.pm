@@ -1675,6 +1675,41 @@ sub stash_variable {
     return $prefix . $self->maybe_qualify($prefix, $name);
 }
 
+my %unctrl = # portable to EBCDIC
+    (
+     "\c@" => '\c@',	# unused
+     "\cA" => '\cA',
+     "\cB" => '\cB',
+     "\cC" => '\cC',
+     "\cD" => '\cD',
+     "\cE" => '\cE',
+     "\cF" => '\cF',
+     "\cG" => '\cG',
+     "\cH" => '\cH',
+     "\cI" => '\cI',
+     "\cJ" => '\cJ',
+     "\cK" => '\cK',
+     "\cL" => '\cL',
+     "\cM" => '\cM',
+     "\cN" => '\cN',
+     "\cO" => '\cO',
+     "\cP" => '\cP',
+     "\cQ" => '\cQ',
+     "\cR" => '\cR',
+     "\cS" => '\cS',
+     "\cT" => '\cT',
+     "\cU" => '\cU',
+     "\cV" => '\cV',
+     "\cW" => '\cW',
+     "\cX" => '\cX',
+     "\cY" => '\cY',
+     "\cZ" => '\cZ',
+     "\c[" => '\c[',	# unused
+     "\c\\" => '\c\\',	# unused
+     "\c]" => '\c]',	# unused
+     "\c_" => '\c_',	# unused
+    );
+
 # Return just the name, without the prefix.  It may be returned as a quoted
 # string.  The second return value is a boolean indicating that.
 sub stash_variable_name {
@@ -1682,7 +1717,9 @@ sub stash_variable_name {
     my $name = $self->gv_name($gv, 1);
     $name = $self->maybe_qualify($prefix,$name);
     if ($name =~ /^(?:\S|(?!\d)[\ca-\cz]?(?:\w|::)*|\d+)\z/) {
-	$name =~ s/^([\ca-\cz])/'^'.($1|'@')/e;
+	if ($name =~ s/^([\ca-\cz])/$unctrl{$1}/e) {
+            $name =~ s/\\c/^/g;
+        }
 	$name =~ /^(\^..|{)/ and $name = "{$name}";
 	return $name, 0; # not quoted
     }
@@ -4477,41 +4514,6 @@ sub re_uninterp {
 }
 }
 
-my %unctrl = # portable to EBCDIC
-    (
-     "\c@" => '\c@',	# unused
-     "\cA" => '\cA',
-     "\cB" => '\cB',
-     "\cC" => '\cC',
-     "\cD" => '\cD',
-     "\cE" => '\cE',
-     "\cF" => '\cF',
-     "\cG" => '\cG',
-     "\cH" => '\cH',
-     "\cI" => '\cI',
-     "\cJ" => '\cJ',
-     "\cK" => '\cK',
-     "\cL" => '\cL',
-     "\cM" => '\cM',
-     "\cN" => '\cN',
-     "\cO" => '\cO',
-     "\cP" => '\cP',
-     "\cQ" => '\cQ',
-     "\cR" => '\cR',
-     "\cS" => '\cS',
-     "\cT" => '\cT',
-     "\cU" => '\cU',
-     "\cV" => '\cV',
-     "\cW" => '\cW',
-     "\cX" => '\cX',
-     "\cY" => '\cY',
-     "\cZ" => '\cZ',
-     "\c[" => '\c[',	# unused
-     "\c\\" => '\c\\',	# unused
-     "\c]" => '\c]',	# unused
-     "\c_" => '\c_',	# unused
-    );
-
 # character escapes, but not delimiters that might need to be escaped
 sub escape_str { # ASCII, UTF8
     my($str) = @_;
@@ -4918,7 +4920,10 @@ sub pchr { # ASCII
 	return '\\\\';
     } elsif ($n == ord "-") {
 	return "\\-";
-    } elsif ($n >= ord(' ') and $n <= ord('~')) {
+    } elsif (utf8::native_to_unicode($n) >= utf8::native_to_unicode(ord(' '))
+             and utf8::native_to_unicode($n) <= utf8::native_to_unicode(ord('~')))
+    {
+        # I'm presuming a regex is not ok here, otherwise should be :print:/a
 	return chr($n);
     } elsif ($n == ord "\a") {
 	return '\\a';
@@ -4935,7 +4940,7 @@ sub pchr { # ASCII
     } elsif ($n == ord "\r") {
 	return '\\r';
     } elsif ($n >= ord("\cA") and $n <= ord("\cZ")) {
-	return '\\c' . chr(ord("@") + $n);
+	return unctrl{chr $n};
     } else {
 #	return '\x' . sprintf("%02x", $n);
 	return '\\' . sprintf("%03o", $n);

@@ -31,7 +31,7 @@ sub txt_compare {
 
 my $result = runperl( progfile => $extracted_program,
                       stderr => 1,
-                      args => ['-d.', '-h', '-D', '-Q', 'lib/h2ph.h']);
+                      args => ['-d.', '-D', '-Q', 'lib/h2ph.h']);
 is( $result, '', "output is free of warnings" );
 is( $?, 0, "$extracted_program runs successfully" );
 

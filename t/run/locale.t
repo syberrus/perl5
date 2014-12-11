@@ -311,9 +311,10 @@ EOF
                 }
                 use locale;
                 use POSIX qw(locale_h);
-                print STDERR "LC_ALL=", \$ENV{LC_ALL}, "\n";
-                print STDERR "LC_NUMERIC=", \$ENV{LC_NUMERIC}, "\n";
-                print STDERR "LANG=", \$ENV{LANG}, "\n";
+                print STDERR "ENV{LC_ALL}=", \$ENV{LC_ALL}, "\n";
+                print STDERR "ENV{LC_NUMERIC}=", \$ENV{LC_NUMERIC}, "\n";
+                print STDERR "ENV{LANG}=", \$ENV{LANG}, "\n";
+                print STDERR "LC_NUMERIC=", POSIX::setlocale(&LC_NUMERIC), "\n";
                 my \$in = 4.2;
                 printf("%g", \$in);
 EOF
